@@ -17,19 +17,19 @@ interface Props {
 const STATUS_OPTIONS: ShowStatus[] = ['inquiry', 'quoted', 'confirmed', 'completed', 'cancelled', 'hold'];
 
 const SHOW_TYPES = [
-  'AI Amplification Experience',
-  'Aurora Corps',
-  'Bucket Ruckus',
-  'Center Stage Karaoke',
+  'AI Amplification',
+  'AuroraCorps',
+  'BucketRuckus',
+  'Center Stage',
+  'Custom',
   'DJ Drums',
-  'Dueling DJ\'s',
-  'Hot Stickin\' Country Drumline',
+  'Hot Stickin',
   'LuminaDrums',
-  'Nashville Sound DJ',
+  'Other',
   'rePercussion',
-  'Stix One Five',
-  'Ultimate Live Music Experience',
+  'StixOneFive',
   'Vince the DJ',
+  'VRCG',
 ];
 
 function EditableField({

@@ -35,11 +35,12 @@ const stageBadge = (label: string, color: string) => (
   <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${color}`}>{label}</span>
 );
 
-function EmailStage({ performer, stage, show }: { performer: RosterPerformer; stage: EmailStageType; show: ShowIntelligence }) {
+function EmailStage({ performer, stage, show, onEmailUpdate }: { performer: RosterPerformer; stage: EmailStageType; show: ShowIntelligence; onEmailUpdate?: (email: string) => void }) {
   const sentAt = performer[`${stage}SentAt` as keyof RosterPerformer] as string | undefined;
   const openedAt = performer[`${stage}OpenedAt` as keyof RosterPerformer] as string | undefined;
   const response = performer[`${stage}Response` as keyof RosterPerformer] as string | undefined;
   const respondedAt = performer[`${stage}RespondedAt` as keyof RosterPerformer] as string | undefined;
+  const [inlineEmail, setInlineEmail] = useState('');
 
   // Determine if previous stage is complete (for disabling)
   const canSend = (() => {
@@ -48,6 +49,8 @@ function EmailStage({ performer, stage, show }: { performer: RosterPerformer; st
     if (stage === 'confirmation') return !!performer.offerResponse && !sentAt;
     return false;
   })();
+
+  const effectiveEmail = performer.email || inlineEmail;
 
   const isPositive = response === 'Available' || response === 'Accepted' || response === 'Confirmed';
   const isNegative = response === 'Unavailable' || response === 'Declined' || response === 'Not Confirmed';
@@ -60,42 +63,51 @@ function EmailStage({ performer, stage, show }: { performer: RosterPerformer; st
     <div className="flex items-center gap-2 flex-wrap">
       <span className="text-[10px] text-slate-500 uppercase tracking-wider w-20 shrink-0">{stage}</span>
 
-      {!sentAt && canSend && performer.email && (
-        <BrainActionButton
-          label={`Send ${stage}`}
-          icon={<Send size={10} />}
-          size="sm"
-          request={{
-            type: 'action',
-            prompt: `Send ${stage} email to ${performer.name} for ${showName} on ${show.showDate} at ${venue}`,
-            showId: show.id,
-            context: {
-              actionSteps: [{
-                tool: 'send_email',
-                params: {
-                  showId: show.linkedShowId || show.id,
-                  performerId: performer.performerId || performer.name,
-                  performerName: performer.name,
-                  performerEmail: performer.email,
-                  emailType: stage,
-                  showName,
-                  showDate: show.showDate,
-                  venue,
-                  callTime: show.loadInTime,
-                  performanceStart: show.performanceStartTime,
-                  pay: performer.pay,
-                  notesToTalent: '',
-                  portalBaseUrl: 'https://vrbrain.vercel.app/portal',
-                  trackingBaseUrl: 'https://vcommand.vercel.app/api/showsync/track',
-                },
-              }],
-            },
-          }}
-        />
-      )}
-
-      {!sentAt && canSend && !performer.email && (
-        <span className="text-[10px] text-slate-600 italic">No email</span>
+      {!sentAt && canSend && (
+        <div className="flex items-center gap-2">
+          {!performer.email && (
+            <input
+              type="email"
+              value={inlineEmail}
+              onChange={(e) => setInlineEmail(e.target.value)}
+              onBlur={() => { if (inlineEmail && onEmailUpdate) onEmailUpdate(inlineEmail); }}
+              placeholder="Enter email..."
+              className="bg-white/5 border border-white/10 rounded px-2 py-0.5 text-[11px] w-40 focus:outline-none focus:border-amber-500/50"
+            />
+          )}
+          <BrainActionButton
+            label={`Send ${stage}`}
+            icon={<Send size={10} />}
+            size="sm"
+            disabled={!effectiveEmail}
+            request={{
+              type: 'action',
+              prompt: `Send ${stage} email to ${performer.name} (${effectiveEmail}) for ${showName} on ${show.showDate} at ${venue}`,
+              showId: show.id,
+              context: {
+                actionSteps: [{
+                  tool: 'send_email',
+                  params: {
+                    showId: show.linkedShowId || show.id,
+                    performerId: performer.performerId || performer.name,
+                    performerName: performer.name,
+                    performerEmail: effectiveEmail,
+                    emailType: stage,
+                    showName,
+                    showDate: show.showDate,
+                    venue,
+                    callTime: show.loadInTime,
+                    performanceStart: show.performanceStartTime,
+                    pay: performer.pay,
+                    notesToTalent: '',
+                    portalBaseUrl: 'https://vrbrain.vercel.app/portal',
+                    trackingBaseUrl: 'https://vcommand.vercel.app/api/showsync/track',
+                  },
+                }],
+              },
+            }}
+          />
+        </div>
       )}
 
       {!sentAt && !canSend && (
@@ -122,7 +134,7 @@ function EmailStage({ performer, stage, show }: { performer: RosterPerformer; st
 }
 
 function PerformerRow({ performer, show, onRemove }: { performer: RosterPerformer; show: ShowIntelligence; onRemove: () => void | Promise<void> }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true); // Default expanded so pipeline is always visible
   const [confirmRemove, setConfirmRemove] = useState(false);
 
   const statusStyle: Record<string, string> = {
