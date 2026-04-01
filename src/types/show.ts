@@ -26,6 +26,8 @@ export interface ShowSourceEmail {
   extractedFields: string[];
 }
 
+export type EmailStageType = 'inquiry' | 'offer' | 'confirmation';
+
 export interface RosterPerformer {
   name: string;
   status: 'confirmed' | 'offered' | 'inquired' | 'declined' | 'unavailable';
@@ -33,6 +35,20 @@ export interface RosterPerformer {
   email?: string;
   phone?: string;
   role?: string;
+  performerId?: string;
+  // Email tracking — populated by ShowSync sync from Sheets
+  inquirySentAt?: string;
+  inquiryOpenedAt?: string;
+  inquiryResponse?: string;       // "Available" | "Unavailable"
+  inquiryRespondedAt?: string;
+  offerSentAt?: string;
+  offerOpenedAt?: string;
+  offerResponse?: string;         // "Accepted" | "Declined"
+  offerRespondedAt?: string;
+  confirmationSentAt?: string;
+  confirmationOpenedAt?: string;
+  confirmationResponse?: string;  // "Confirmed" | "Not Confirmed"
+  confirmationRespondedAt?: string;
 }
 
 export interface ShowRoster {
