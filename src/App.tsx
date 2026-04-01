@@ -14,6 +14,7 @@ import Tasks from './components/Tasks';
 import Settings from './components/Settings';
 import ShowDetail from './components/ShowDetail';
 import AdminImport from './components/AdminImport';
+import PerformerPortal from './components/PerformerPortal';
 import { useAuth } from './hooks/useAuth';
 import { useUpdateCheck } from './hooks/useUpdateCheck';
 import { Loader2, RefreshCw } from 'lucide-react';
@@ -44,6 +45,11 @@ export default function App() {
   const pageName = activePage.charAt(0).toUpperCase() + activePage.slice(1);
   const { user, loading, error, login, logout } = useAuth();
   const { updateAvailable, hardUpdate } = useUpdateCheck();
+
+  // Portal is public — no auth required
+  if (location.pathname === '/portal') {
+    return <PerformerPortal />;
+  }
 
   if (loading) {
     return (
