@@ -8,6 +8,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { FileText, PenTool, Mic, Clock, X, Plus, Trash2, Send, Download, DollarSign, Loader2 } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer';
 import InvoicePDFDocument from './InvoicePDF';
+import ContractPDFDocument from './ContractPDF';
 import { db } from '../lib/firebase-client';
 import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 
@@ -417,66 +418,122 @@ const InvoiceEditor = ({ onClose }: { onClose: () => void }) => {
 // CONTRACT EDITOR (unchanged)
 // ============================================================
 
-const ContractEditor = ({ onClose }: { onClose: () => void }) => (
-  <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-    <div className="glass w-full max-w-4xl p-8 rounded-2xl max-h-[90vh] overflow-y-auto">
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-bold">Contract Generator</h2>
-        <button onClick={onClose} className="text-slate-400 hover:text-white"><X /></button>
-      </div>
+const ContractEditor = ({ onClose }: { onClose: () => void }) => {
+  const [form, setForm] = useState({
+    clientName: '', clientContact: '', clientEmail: '',
+    eventName: '', eventDate: '', venue: '', city: '', state: '',
+    performanceType: '', setLength: '', setupTime: '60 minutes',
+    totalFee: '', depositAmount: '', cancellationPolicy: '',
+    dateIssued: new Date().toISOString().split('T')[0],
+  });
+  const [shows, setShows] = useState<ShowOption[]>([]);
+  const [exporting, setExporting] = useState(false);
 
-      <div className="mb-6">
-        <label className="col-header mb-3 block">Template</label>
-        <div className="grid grid-cols-2 gap-4">
-          <button className="glass p-4 rounded-xl border-2 border-amber-500/50 text-left">
-            <div className="font-bold text-sm">Simple One-Pager</div>
-            <div className="text-xs text-slate-500 mt-1">Quick agreement for straightforward gigs</div>
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const q = query(collection(db, 'show_intelligence'), where('showDate', '>=', today), orderBy('showDate', 'asc'), limit(50));
+    getDocs(q).then(snap => {
+      setShows(snap.docs.map(d => {
+        const s = d.data();
+        return { id: d.id, name: s.eventName || s.clientName || '', client: s.clientName || '', date: s.showDate || '', venue: s.venueName || '', fee: s.fee?.replace(/[^0-9.]/g, '') || '', contactEmail: s.clientContacts?.[0]?.email || s.onsiteContact?.email || '' };
+      }));
+    });
+  }, []);
+
+  const handleShowSelect = (showId: string) => {
+    const s = shows.find(sh => sh.id === showId);
+    if (!s) return;
+    setForm(prev => ({ ...prev, clientName: s.client, clientEmail: s.contactEmail, eventName: s.name, eventDate: s.date, venue: s.venue, totalFee: s.fee }));
+  };
+
+  const up = (field: string, value: string) => setForm(prev => ({ ...prev, [field]: value }));
+  const inp = (field: string, placeholder: string, type = 'text') => (
+    <input type={type} value={(form as any)[field]} onChange={e => up(field, e.target.value)} placeholder={placeholder} className="w-full bg-white/5 border border-white/6 rounded-lg p-3 text-sm focus:outline-none focus:border-amber-500/50" />
+  );
+
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const blob = await pdf(<ContractPDFDocument {...form} />).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Contract-${form.clientName || 'draft'}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) { alert('PDF export failed: ' + err.message); }
+    setExporting(false);
+  };
+
+  const handleCopy = () => {
+    const fee = parseFloat(form.totalFee?.replace(/[^0-9.]/g, '') || '0');
+    const deposit = fee / 2;
+    const text = `PERFORMANCE AGREEMENT\nVR Creative Group\n\nClient: ${form.clientName}\nContact: ${form.clientContact}\nEvent: ${form.eventName}\nDate: ${form.eventDate}\nVenue: ${form.venue}, ${form.city} ${form.state}\n\nPerformance: ${form.performanceType}\nSet Length: ${form.setLength}\nSetup: ${form.setupTime}\n\nTotal Fee: $${fee}\nDeposit (50%): $${deposit} — due upon signing\nBalance: $${deposit} — due on event date\n\nTerms: Deposit non-refundable. Cancellation 60+ days: deposit forfeited. 30-59 days: 50% total due. <30 days: full fee due.`;
+    navigator.clipboard.writeText(text);
+  };
+
+  return (
+    <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="glass w-full max-w-4xl p-8 rounded-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold">Contract Generator</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-white"><X /></button>
+        </div>
+
+        {shows.length > 0 && (
+          <div className="mb-6">
+            <label className="col-header text-xs mb-2 block">Auto-fill from Show</label>
+            <select onChange={e => handleShowSelect(e.target.value)} defaultValue="" className="w-full bg-white/5 border border-white/6 rounded-lg p-3 text-sm focus:outline-none focus:border-amber-500/50">
+              <option value="">Select a show...</option>
+              {shows.map(s => <option key={s.id} value={s.id}>{s.date} — {s.name} ({s.client})</option>)}
+            </select>
+          </div>
+        )}
+
+        <div className="grid grid-cols-2 gap-6 mb-6">
+          <div className="space-y-3">
+            <label className="col-header">Parties</label>
+            {inp('clientName', 'Client name')}
+            {inp('clientContact', 'Client contact')}
+            {inp('clientEmail', 'Client email')}
+          </div>
+          <div className="space-y-3">
+            <label className="col-header">Event Details</label>
+            {inp('eventName', 'Event name')}
+            {inp('venue', 'Venue')}
+            {inp('eventDate', 'Event date', 'date')}
+            <div className="grid grid-cols-2 gap-3">
+              {inp('city', 'City')}
+              {inp('state', 'State')}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-6 mb-6">
+          <div className="space-y-3">
+            <label className="col-header">Performance Terms</label>
+            {inp('performanceType', 'Performance type (e.g. LuminaDrums)')}
+            {inp('setLength', 'Set length (e.g. 45 minutes)')}
+            {inp('setupTime', 'Setup time (e.g. 60 minutes)')}
+          </div>
+          <div className="space-y-3">
+            <label className="col-header">Payment</label>
+            {inp('totalFee', 'Total fee')}
+            {inp('depositAmount', 'Deposit (auto: 50%)')}
+          </div>
+        </div>
+
+        <div className="flex gap-3 justify-end">
+          <button onClick={handleCopy} className="px-6 py-2 rounded-lg text-sm font-bold bg-white/5 text-slate-300 hover:bg-white/10 transition-colors">Copy Text</button>
+          <button onClick={handleExport} disabled={exporting} className="flex items-center gap-2 bg-amber-500 text-slate-950 px-6 py-2 rounded-lg font-bold hover:bg-amber-400 transition-colors disabled:opacity-50">
+            {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            {exporting ? 'Generating...' : 'Export PDF'}
           </button>
-          <button className="glass p-4 rounded-xl border border-white/6 text-left hover:border-white/20 transition-colors">
-            <div className="font-bold text-sm">Full 26-Clause</div>
-            <div className="text-xs text-slate-500 mt-1">Comprehensive contract with all protections</div>
-          </button>
         </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-6 mb-6">
-        <div className="space-y-3">
-          <label className="col-header">Parties</label>
-          <input className="w-full bg-white/5 border border-white/6 rounded-lg p-3 text-sm focus:outline-none focus:border-amber-500/50" placeholder="Client name" />
-          <input className="w-full bg-white/5 border border-white/6 rounded-lg p-3 text-sm focus:outline-none focus:border-amber-500/50" placeholder="Client contact" />
-          <input className="w-full bg-white/5 border border-white/6 rounded-lg p-3 text-sm focus:outline-none focus:border-amber-500/50" placeholder="Client email" />
-        </div>
-        <div className="space-y-3">
-          <label className="col-header">Event Details</label>
-          <input className="w-full bg-white/5 border border-white/6 rounded-lg p-3 text-sm focus:outline-none focus:border-amber-500/50" placeholder="Event name" />
-          <input className="w-full bg-white/5 border border-white/6 rounded-lg p-3 text-sm focus:outline-none focus:border-amber-500/50" placeholder="Venue" />
-          <input className="w-full bg-white/5 border border-white/6 rounded-lg p-3 text-sm focus:outline-none focus:border-amber-500/50" type="date" />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-6 mb-6">
-        <div className="space-y-3">
-          <label className="col-header">Performance Terms</label>
-          <input className="w-full bg-white/5 border border-white/6 rounded-lg p-3 text-sm focus:outline-none focus:border-amber-500/50" placeholder="Performance type" />
-          <input className="w-full bg-white/5 border border-white/6 rounded-lg p-3 text-sm focus:outline-none focus:border-amber-500/50" placeholder="Set length" />
-          <input className="w-full bg-white/5 border border-white/6 rounded-lg p-3 text-sm focus:outline-none focus:border-amber-500/50" placeholder="Setup time required" />
-        </div>
-        <div className="space-y-3">
-          <label className="col-header">Payment Schedule</label>
-          <input className="w-full bg-white/5 border border-white/6 rounded-lg p-3 text-sm focus:outline-none focus:border-amber-500/50" placeholder="Total fee" />
-          <input className="w-full bg-white/5 border border-white/6 rounded-lg p-3 text-sm focus:outline-none focus:border-amber-500/50" placeholder="Deposit amount" />
-          <input className="w-full bg-white/5 border border-white/6 rounded-lg p-3 text-sm focus:outline-none focus:border-amber-500/50" placeholder="Cancellation policy" />
-        </div>
-      </div>
-
-      <div className="flex gap-3 justify-end">
-        <button className="px-6 py-2 rounded-lg text-sm font-bold bg-white/5 text-slate-300 hover:bg-white/10 transition-colors">Save to Library</button>
-        <button className="flex items-center gap-2 px-6 py-2 rounded-lg text-sm font-bold bg-white/5 text-slate-300 hover:bg-white/10 transition-colors"><Send size={14} /> Email to Client</button>
-        <button className="flex items-center gap-2 bg-amber-500 text-slate-950 px-6 py-2 rounded-lg font-bold hover:bg-amber-400 transition-colors"><Download size={14} /> Export PDF</button>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ============================================================
 // RIDER EDITOR (unchanged)
@@ -606,7 +663,7 @@ export default function Tools() {
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const tools = [
     { name: 'Invoice Generator', icon: FileText, desc: 'Create and manage client invoices', ready: true },
-    { name: 'Contract Generator', icon: PenTool, desc: 'Build contracts from templates', ready: false },
+    { name: 'Contract Generator', icon: PenTool, desc: 'Build contracts from templates', ready: true },
     { name: 'Rider Builder', icon: Mic, desc: 'Define technical requirements', ready: false },
   ];
 
