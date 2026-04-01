@@ -5,7 +5,9 @@
  */
 
 import React, { useState, useCallback } from 'react';
-import { FileText, PenTool, Mic, Clock, X, Plus, Trash2, Send, Download, DollarSign } from 'lucide-react';
+import { FileText, PenTool, Mic, Clock, X, Plus, Trash2, Send, Download, DollarSign, Loader2 } from 'lucide-react';
+import { pdf } from '@react-pdf/renderer';
+import InvoicePDFDocument from './InvoicePDF';
 
 // ============================================================
 // INVOICE GENERATOR (full feature parity with v1)
@@ -110,10 +112,45 @@ const InvoiceEditor = ({ onClose }: { onClose: () => void }) => {
     }));
   }, [data.items]);
 
+  const [exporting, setExporting] = useState(false);
+
   // Computed totals
   const subtotal = data.items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
   const taxAmount = subtotal * (data.taxRate / 100);
   const grandTotal = subtotal + taxAmount;
+
+  const handleExportPDF = async () => {
+    setExporting(true);
+    try {
+      const blob = await pdf(
+        <InvoicePDFDocument
+          invoiceNumber={data.invoiceNumber}
+          dateIssued={data.dateIssued}
+          dateDue={data.dateDue}
+          clientName={data.clientName}
+          billToAddress={data.billToAddress}
+          eventName={data.eventName}
+          eventDate={data.eventDate}
+          items={data.items}
+          taxRate={data.taxRate}
+          notes={data.notes}
+          paymentTerms={data.paymentTerms}
+          fromName={data.fromName}
+          fromAddress={data.fromAddress}
+          fromEmail={data.fromEmail}
+        />
+      ).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${data.invoiceNumber}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert('PDF export failed: ' + err.message);
+    }
+    setExporting(false);
+  };
 
   return (
     <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -309,8 +346,9 @@ const InvoiceEditor = ({ onClose }: { onClose: () => void }) => {
           <button className="flex items-center gap-2 px-5 py-2 rounded-lg text-sm font-bold bg-white/5 text-slate-300 hover:bg-white/10 transition-colors">
             <Send size={14} /> Email to Client
           </button>
-          <button className="flex items-center gap-2 bg-amber-500 text-slate-950 px-5 py-2 rounded-lg font-bold hover:bg-amber-400 transition-colors">
-            <Download size={14} /> Export PDF
+          <button onClick={handleExportPDF} disabled={exporting} className="flex items-center gap-2 bg-amber-500 text-slate-950 px-5 py-2 rounded-lg font-bold hover:bg-amber-400 transition-colors disabled:opacity-50">
+            {exporting ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+            {exporting ? 'Generating...' : 'Export PDF'}
           </button>
         </div>
       </div>
