@@ -510,9 +510,9 @@ const editors: Record<string, React.FC<{ onClose: () => void }>> = {
 export default function Tools() {
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const tools = [
-    { name: 'Invoice Generator', icon: FileText, desc: 'Create and manage client invoices' },
-    { name: 'Contract Generator', icon: PenTool, desc: 'Build contracts from templates' },
-    { name: 'Rider Builder', icon: Mic, desc: 'Define technical requirements' },
+    { name: 'Invoice Generator', icon: FileText, desc: 'Create and manage client invoices', ready: true },
+    { name: 'Contract Generator', icon: PenTool, desc: 'Build contracts from templates', ready: false },
+    { name: 'Rider Builder', icon: Mic, desc: 'Define technical requirements', ready: false },
   ];
 
   const ActiveEditor = activeTool ? editors[activeTool] : null;
@@ -520,10 +520,11 @@ export default function Tools() {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       {tools.map(tool => (
-        <div key={tool.name} onClick={() => setActiveTool(tool.name)} className="glass p-8 rounded-2xl border border-white/6 hover:border-amber-500/50 cursor-pointer transition-all group">
-          <tool.icon className="text-amber-500 mb-6 group-hover:scale-110 transition-transform" size={40} />
+        <div key={tool.name} onClick={() => tool.ready && setActiveTool(tool.name)} className={`glass p-8 rounded-2xl border transition-all group ${tool.ready ? 'border-white/6 hover:border-amber-500/50 cursor-pointer' : 'border-white/4 opacity-50 cursor-default'}`}>
+          <tool.icon className={`mb-6 group-hover:scale-110 transition-transform ${tool.ready ? 'text-amber-500' : 'text-slate-600'}`} size={40} />
           <h3 className="text-xl font-bold mb-2 tracking-tight">{tool.name}</h3>
           <p className="text-slate-400 text-sm font-mono">{tool.desc}</p>
+          {!tool.ready && <p className="text-xs text-slate-600 mt-2 uppercase tracking-wider">Coming Soon</p>}
         </div>
       ))}
       {ActiveEditor && <ActiveEditor onClose={() => setActiveTool(null)} />}

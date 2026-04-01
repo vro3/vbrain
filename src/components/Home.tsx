@@ -261,7 +261,7 @@ export default function Home() {
     <div className="dashboard-grid gap-6 h-[calc(100vh-120px)]">
       {/* Jarvince Chat */}
       <div
-        className={`col-span-12 lg:col-span-7 flex flex-col glass rounded-2xl p-6 relative transition-colors ${isDragging ? 'ring-2 ring-amber-500/50 bg-amber-500/5' : ''}`}
+        className={`col-span-12 lg:col-span-7 flex flex-col glass rounded-2xl p-6 relative transition-colors h-[calc(100vh-120px)] overflow-hidden ${isDragging ? 'ring-2 ring-amber-500/50 bg-amber-500/5' : ''}`}
         onDragEnter={handleDragEnter}
         onDragLeave={handleDragLeave}
         onDragOver={handleDragOver}
@@ -381,9 +381,9 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Upcoming Shows */}
-      <div className="col-span-12 lg:col-span-5 flex flex-col glass rounded-2xl p-6">
-        <div className="flex justify-between items-center mb-4">
+      {/* Upcoming Shows — independently scrollable */}
+      <div className="col-span-12 lg:col-span-5 flex flex-col glass rounded-2xl p-6 h-[calc(100vh-120px)] overflow-hidden">
+        <div className="flex justify-between items-center mb-4 shrink-0">
           <h2 className="col-header">Upcoming Shows</h2>
           <button
             onClick={() => setIsModalOpen(true)}
@@ -392,7 +392,7 @@ export default function Home() {
             <Plus size={14} /> New Show
           </button>
         </div>
-        <div className="flex gap-1 mb-4">
+        <div className="flex gap-1 mb-4 shrink-0">
           {(['all', 'confirmed', 'inquiry'] as const).map(f => (
             <button
               key={f}
@@ -405,7 +405,7 @@ export default function Home() {
             </button>
           ))}
         </div>
-        <div className="space-y-3 overflow-auto">
+        <div className="space-y-3 overflow-y-auto flex-1">
           {(() => {
             const filtered = statusFilter === 'all' ? shows : shows.filter(s => s.status === statusFilter);
             if (filtered.length === 0) return <p className="text-sm text-slate-500 text-center py-8">{statusFilter === 'all' ? 'No upcoming shows' : `No ${statusFilter} shows`}</p>;

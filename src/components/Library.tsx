@@ -4,9 +4,9 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Search, ExternalLink } from 'lucide-react';
+import { Search, ExternalLink, Plus } from 'lucide-react';
 import { db } from '../lib/firebase-client';
-import { collection, query, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { collection, query, orderBy, limit, onSnapshot, addDoc } from 'firebase/firestore';
 
 interface LibraryItem {
   id: string;
@@ -21,6 +21,23 @@ interface LibraryItem {
 export default function Library() {
   const [items, setItems] = useState<LibraryItem[]>([]);
   const [search, setSearch] = useState('');
+  const [showAdd, setShowAdd] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newContent, setNewContent] = useState('');
+  const [newTags, setNewTags] = useState('');
+
+  const handleAdd = async () => {
+    if (!newTitle.trim()) return;
+    await addDoc(collection(db, 'library'), {
+      title: newTitle,
+      content: newContent,
+      tags: newTags.split(',').map(t => t.trim()).filter(Boolean),
+      type: 'note',
+      source: 'vBrain',
+      createdAt: new Date().toISOString(),
+    });
+    setNewTitle(''); setNewContent(''); setNewTags(''); setShowAdd(false);
+  };
 
   useEffect(() => {
     const q = query(
@@ -47,15 +64,21 @@ export default function Library() {
       <div className="flex gap-2">
         <div className="flex-1 relative">
           <Search size={16} className="absolute left-3 top-3 text-slate-500" />
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full bg-slate-900 border border-white/6 rounded-lg p-2 pl-10"
-            placeholder="Search your library..."
-          />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} className="w-full bg-slate-900 border border-white/6 rounded-lg p-2 pl-10" placeholder="Search your library..." />
         </div>
+        <button onClick={() => setShowAdd(!showAdd)} className="bg-amber-500 text-slate-950 px-4 py-2 rounded-lg font-bold flex items-center gap-2 text-sm"><Plus size={16} /> Save</button>
       </div>
+      {showAdd && (
+        <div className="glass p-4 rounded-xl space-y-3">
+          <input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Title" className="w-full bg-white/5 border border-white/6 rounded-lg p-2 text-sm focus:outline-none focus:border-amber-500/50" />
+          <textarea value={newContent} onChange={e => setNewContent(e.target.value)} placeholder="Content..." rows={3} className="w-full bg-white/5 border border-white/6 rounded-lg p-2 text-sm focus:outline-none focus:border-amber-500/50 resize-y" />
+          <input value={newTags} onChange={e => setNewTags(e.target.value)} placeholder="Tags (comma-separated)" className="w-full bg-white/5 border border-white/6 rounded-lg p-2 text-sm focus:outline-none focus:border-amber-500/50" />
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setShowAdd(false)} className="text-xs text-slate-400">Cancel</button>
+            <button onClick={handleAdd} disabled={!newTitle.trim()} className="bg-amber-500 text-slate-950 px-4 py-1.5 rounded-lg text-xs font-bold disabled:opacity-40">Save to Library</button>
+          </div>
+        </div>
+      )}
       {filtered.length === 0 && (
         <p className="text-sm text-slate-500 text-center py-12">
           {search ? 'No items match your search.' : 'No library items yet.'}

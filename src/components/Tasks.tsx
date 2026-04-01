@@ -4,8 +4,9 @@
  */
 
 import { useState, useEffect } from 'react';
+import { Plus } from 'lucide-react';
 import { db } from '../lib/firebase-client';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, addDoc } from 'firebase/firestore';
 
 interface TaskItem {
   id: string;
@@ -33,6 +34,22 @@ const statusStyle: Record<string, string> = {
 export default function Tasks() {
   const [tasks, setTasks] = useState<TaskItem[]>([]);
   const [filter, setFilter] = useState<'all' | 'pending' | 'in-progress' | 'done'>('all');
+  const [showAdd, setShowAdd] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newPriority, setNewPriority] = useState('medium');
+
+  const handleAdd = async () => {
+    if (!newTitle.trim()) return;
+    await addDoc(collection(db, 'tasks'), {
+      title: newTitle,
+      priority: newPriority,
+      status: 'pending',
+      type: 'task',
+      source: 'vBrain',
+      createdAt: new Date().toISOString(),
+    });
+    setNewTitle(''); setShowAdd(false);
+  };
 
   useEffect(() => {
     const q = query(
@@ -54,6 +71,21 @@ export default function Tasks() {
 
   return (
     <div className="space-y-4">
+      <div className="flex gap-2 items-center">
+        <button onClick={() => setShowAdd(!showAdd)} className="bg-amber-500 text-slate-950 px-4 py-1.5 rounded-lg font-bold flex items-center gap-2 text-xs"><Plus size={14} /> New Task</button>
+      </div>
+      {showAdd && (
+        <div className="flex gap-2 items-center bg-slate-900 p-3 rounded-lg border border-white/6">
+          <input value={newTitle} onChange={e => setNewTitle(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAdd()} placeholder="Task title..." className="flex-1 bg-transparent p-1 text-sm outline-none" autoFocus />
+          <select value={newPriority} onChange={e => setNewPriority(e.target.value)} className="bg-white/5 border border-white/6 rounded px-2 py-1 text-xs">
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <button onClick={handleAdd} disabled={!newTitle.trim()} className="bg-amber-500 text-slate-950 px-3 py-1 rounded text-xs font-bold disabled:opacity-40">Add</button>
+          <button onClick={() => setShowAdd(false)} className="text-xs text-slate-500">Cancel</button>
+        </div>
+      )}
       <div className="flex gap-2">
         {(['all', 'pending', 'in-progress', 'done'] as const).map(f => (
           <button

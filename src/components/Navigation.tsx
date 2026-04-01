@@ -15,7 +15,7 @@ export const Sidebar = ({ activePage }: { activePage: string }) => {
 
   return (
     <aside className="hidden md:flex w-64 flex-col border-r border-white/6 p-4 glass">
-      <div className="text-xl font-bold mb-8 px-2 text-white tracking-tighter">vCommand</div>
+      <div className="text-xl font-bold mb-8 px-2 text-white tracking-tighter">vBrain</div>
       <nav className="space-y-1">
         {navItems.map((item) => (
           <Link

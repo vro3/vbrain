@@ -145,6 +145,74 @@ function SendButton({ performer, stage, show }: { performer: RosterPerformer; st
   );
 }
 
+function EmailBlitzButton({ performers, show }: { performers: RosterPerformer[]; show: ShowIntelligence }) {
+  const brain = useBrainRequest();
+  const [blitzType, setBlitzType] = useState<EmailStageType | null>(null);
+  const [sent, setSent] = useState(0);
+  const [total, setTotal] = useState(0);
+
+  const startBlitz = async (stage: EmailStageType) => {
+    const eligible = performers.filter(p => p.email);
+    setBlitzType(stage);
+    setTotal(eligible.length);
+    setSent(0);
+
+    for (const p of eligible) {
+      const showName = show.eventName || show.clientName || 'Show';
+      await brain.sendRequest({
+        type: 'action',
+        prompt: `Send ${stage} email to ${p.name} (${p.email}) for ${showName}`,
+        showId: show.id,
+        context: {
+          actionSteps: [{
+            tool: 'send_email',
+            params: {
+              showId: show.linkedShowId || show.id,
+              performerId: p.performerId || p.name,
+              performerName: p.name,
+              performerEmail: p.email,
+              emailType: stage,
+              showName,
+              showDate: show.showDate,
+              venue: show.venueName || '',
+              callTime: show.loadInTime,
+              performanceStart: show.performanceStartTime,
+              pay: p.pay,
+              portalBaseUrl: 'https://vrbrain.vercel.app/portal',
+              trackingBaseUrl: 'https://vcommand.vercel.app/api/showsync/track',
+            },
+          }],
+        },
+      });
+      setSent(prev => prev + 1);
+    }
+    setTimeout(() => setBlitzType(null), 3000);
+  };
+
+  if (blitzType) {
+    return (
+      <span className="text-xs text-amber-400">
+        <Loader2 size={12} className="inline animate-spin mr-1" />
+        {blitzType}: {sent}/{total} queued
+      </span>
+    );
+  }
+
+  return (
+    <div className="flex gap-1">
+      <button onClick={() => startBlitz('inquiry')} className="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors">
+        <Mail size={10} className="inline mr-1" />Blitz Inquiry
+      </button>
+      <button onClick={() => startBlitz('offer')} className="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 transition-colors">
+        Blitz Offer
+      </button>
+      <button onClick={() => startBlitz('confirmation')} className="px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
+        Blitz Confirm
+      </button>
+    </div>
+  );
+}
+
 export default function ShowRosterTab({ show }: Props) {
   const [showAddModal, setShowAddModal] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -192,9 +260,7 @@ export default function ShowRosterTab({ show }: Props) {
       <div className="flex justify-between items-center">
         <h3 className="col-header flex items-center gap-2"><Users size={14} /> Performers ({roster.totalPerformers})</h3>
         <div className="flex gap-2">
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-400 border border-blue-500/20 hover:bg-blue-500/20 transition-colors">
-            <Mail size={12} /> Email Blitz
-          </button>
+          <EmailBlitzButton performers={roster.performers} show={show} />
           <button onClick={() => setShowAddModal(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-amber-500 text-slate-950 hover:bg-amber-400 transition-colors">
             <Plus size={12} /> Add
           </button>
