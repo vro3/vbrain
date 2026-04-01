@@ -16,6 +16,21 @@ interface Props {
 
 const STATUS_OPTIONS: ShowStatus[] = ['inquiry', 'quoted', 'confirmed', 'completed', 'cancelled', 'hold'];
 
+const SHOW_TYPES = [
+  'LuminaDrums',
+  'AI Amplification Experience',
+  'Hot Stickin\' Country Drumline',
+  'DJ Drums',
+  'Vince the DJ',
+  'Center Stage Karaoke',
+  'Nashville Sound DJ',
+  'Ultimate Live Music Experience',
+  'Stix One Five',
+  'rePercussion',
+  'Aurora Corps',
+  'Dueling DJ\'s',
+];
+
 function EditableField({
   icon: Icon,
   label,
@@ -150,7 +165,7 @@ export default function ShowOverviewTab({ show, updateField }: Props) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-3">
           <EditableField icon={User} label="Event Name" value={show.eventName} field="eventName" onSave={updateField} large />
           <EditableField icon={User} label="Status" value={show.status} field="status" onSave={updateField} type="select" options={STATUS_OPTIONS} />
-          <EditableField icon={User} label="Event Type" value={show.eventType} field="eventType" onSave={updateField} />
+          <EditableField icon={User} label="Show Type" value={show.eventType} field="eventType" onSave={updateField} type="select" options={SHOW_TYPES} />
           <EditableField icon={Clock} label="Show Date" value={show.showDate} field="showDate" onSave={updateField} type="date" />
           <EditableField icon={User} label="Client" value={show.clientName} field="clientName" onSave={updateField} />
           <EditableField icon={Building2} label="Company" value={show.clientCompany} field="clientCompany" onSave={updateField} />
