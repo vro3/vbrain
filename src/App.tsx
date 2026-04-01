@@ -14,7 +14,8 @@ import Tasks from './components/Tasks';
 import Settings from './components/Settings';
 import ShowDetail from './components/ShowDetail';
 import { useAuth } from './hooks/useAuth';
-import { Loader2 } from 'lucide-react';
+import { useUpdateCheck } from './hooks/useUpdateCheck';
+import { Loader2, RefreshCw } from 'lucide-react';
 
 function LoginScreen({ onLogin, error }: { onLogin: () => void; error: string | null }) {
   return (
@@ -41,6 +42,7 @@ export default function App() {
   const activePage = location.pathname.split('/')[1] || 'Home';
   const pageName = activePage.charAt(0).toUpperCase() + activePage.slice(1);
   const { user, loading, error, login, logout } = useAuth();
+  const { updateAvailable, hardUpdate } = useUpdateCheck();
 
   if (loading) {
     return (
@@ -79,6 +81,14 @@ export default function App() {
         </Routes>
       </main>
       <BottomBar />
+      {updateAvailable && (
+        <button
+          onClick={hardUpdate}
+          className="fixed bottom-4 left-4 z-50 flex items-center gap-2 bg-cyan-500 text-slate-950 px-4 py-2 rounded-full font-bold text-sm shadow-lg shadow-cyan-500/30 animate-pulse hover:animate-none hover:bg-cyan-400 transition-colors"
+        >
+          <RefreshCw size={14} /> Update Available
+        </button>
+      )}
     </div>
   );
 }
