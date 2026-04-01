@@ -13,6 +13,7 @@ import Library from './components/Library';
 import Tasks from './components/Tasks';
 import Settings from './components/Settings';
 import ShowDetail from './components/ShowDetail';
+import AdminImport from './components/AdminImport';
 import { useAuth } from './hooks/useAuth';
 import { useUpdateCheck } from './hooks/useUpdateCheck';
 import { Loader2, RefreshCw } from 'lucide-react';
@@ -78,6 +79,7 @@ export default function App() {
           <Route path="/tasks" element={<Tasks />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/show/:showId" element={<ShowDetail />} />
+          <Route path="/admin/import" element={<AdminImport />} />
         </Routes>
       </main>
       <BottomBar />
