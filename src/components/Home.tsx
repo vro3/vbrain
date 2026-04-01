@@ -29,6 +29,7 @@ interface StagedFile {
 interface UpcomingShow {
   id: string;
   date: string;
+  showType: string;
   client: string;
   venue: string;
   status: string;
@@ -116,7 +117,8 @@ export default function Home() {
         return {
           id: doc.id,
           date: d.showDate || '',
-          client: d.clientName || d.matchKeys?.clientName || 'Unknown',
+          showType: d.eventType || d.eventName || '',
+          client: d.clientName || d.matchKeys?.clientName || '',
           venue: d.venueName || d.matchKeys?.venueName || 'TBD',
           status: d.status || 'inquiry',
         };
@@ -416,8 +418,9 @@ export default function Home() {
               <div className="flex items-center gap-4">
                 <div className="font-mono text-xl text-cyan-400">{show.date}</div>
                 <div>
-                  <div className="font-bold tracking-tight">{show.client}</div>
+                  <div className="font-bold tracking-tight">{show.showType || show.client || 'Untitled'}</div>
                   <div className="text-xs text-slate-400 font-mono">{show.venue}</div>
+                  {show.client && show.showType && <div className="text-xs text-slate-500">{show.client}</div>}
                 </div>
               </div>
               <span className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold ${statusColor(show.status)}`}>
