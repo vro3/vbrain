@@ -173,6 +173,20 @@ export default function ShowOverviewTab({ show, updateField }: Props) {
         </div>
       </div>
 
+      {/* Notes to Talent — prominent, this goes to performer portal */}
+      <div className="space-y-3 pb-6 border-b border-white/6">
+        <h3 className="col-header">Notes to Talent</h3>
+        <p className="text-[10px] text-slate-600">Visible to performers in their portal. Include rehearsal times, dress code, special instructions.</p>
+        <EditableField
+          icon={Users}
+          label="Notes"
+          value={show.notesToTalent}
+          field="notesToTalent"
+          onSave={updateField}
+          type="textarea"
+        />
+      </div>
+
       {/* Two-column detail grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-4">

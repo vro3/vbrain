@@ -101,6 +101,7 @@ export interface ShowIntelligence {
   numberOfSets?: number;
   performerCount?: number;
   costumeNotes?: string;
+  notesToTalent?: string;
   stageDimensions?: string;
   powerRequirements?: string;
   fee?: string;
