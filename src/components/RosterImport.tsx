@@ -12,9 +12,20 @@ import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 function parseCSV(text: string): Record<string, string>[] {
   const lines = text.trim().split('\n');
   if (lines.length < 2) return [];
-  const headers = lines[0].split('\t').map(h => h.trim());
+  // Detect delimiter: tab or comma
+  const delimiter = lines[0].includes('\t') ? '\t' : ',';
+  const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^"|"$/g, ''));
   return lines.slice(1).map(line => {
-    const values = line.split('\t');
+    // Handle quoted CSV fields (commas inside quotes)
+    const values: string[] = [];
+    let current = '';
+    let inQuotes = false;
+    for (const char of line) {
+      if (char === '"') { inQuotes = !inQuotes; continue; }
+      if (char === delimiter && !inQuotes) { values.push(current.trim()); current = ''; continue; }
+      current += char;
+    }
+    values.push(current.trim());
     const row: Record<string, string> = {};
     headers.forEach((h, i) => { row[h] = (values[i] || '').trim(); });
     return row;
