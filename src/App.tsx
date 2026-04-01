@@ -13,17 +13,60 @@ import Library from './components/Library';
 import Tasks from './components/Tasks';
 import Settings from './components/Settings';
 import ShowDetail from './components/ShowDetail';
+import { useAuth } from './hooks/useAuth';
+import { Loader2 } from 'lucide-react';
+
+function LoginScreen({ onLogin, error }: { onLogin: () => void; error: string | null }) {
+  return (
+    <div className="flex items-center justify-center h-screen bg-slate-950">
+      <div className="text-center space-y-6">
+        <h1 className="text-4xl font-bold text-white tracking-tight">vBrain</h1>
+        <p className="text-slate-400">Sign in to access your dashboard</p>
+        {error && (
+          <p className="text-red-400 text-sm bg-red-500/10 px-4 py-2 rounded-lg">{error}</p>
+        )}
+        <button
+          onClick={onLogin}
+          className="bg-white text-slate-950 px-6 py-3 rounded-xl font-semibold hover:bg-slate-200 transition-colors"
+        >
+          Sign in with Google
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const location = useLocation();
   const activePage = location.pathname.split('/')[1] || 'Home';
   const pageName = activePage.charAt(0).toUpperCase() + activePage.slice(1);
+  const { user, loading, error, login, logout } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-950">
+        <Loader2 className="animate-spin text-white" size={32} />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <LoginScreen onLogin={login} error={error} />;
+  }
 
   return (
     <div className="flex h-screen bg-slate-950 text-white">
       <Sidebar activePage={pageName} />
       <main className="flex-1 p-6 overflow-auto pb-20 md:pb-6">
-        <h1 className="text-2xl font-bold mb-6">{pageName}</h1>
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold">{pageName}</h1>
+          <button
+            onClick={logout}
+            className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+          >
+            Sign out
+          </button>
+        </div>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/calendar" element={<Calendar />} />
