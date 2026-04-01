@@ -63,17 +63,43 @@ export default function ShowChecklistTab({ checklist, showId }: Props) {
     await deleteChecklistItem(showId, itemId);
   };
 
-  if (total === 0 && !adding) {
+  const seedDefaults = async () => {
+    const defaults = [
+      { label: 'Send W9 to client', category: 'documents', priority: 'high' as const, status: 'pending' as const },
+      { label: 'Send deposit invoice', category: 'finance', priority: 'high' as const, status: 'pending' as const },
+      { label: 'Deposit received', category: 'finance', priority: 'high' as const, status: 'pending' as const },
+      { label: 'Contract signed', category: 'documents', priority: 'high' as const, status: 'pending' as const },
+      { label: 'Send performer inquiries', category: 'performers', priority: 'medium' as const, status: 'pending' as const },
+      { label: 'Confirm roster', category: 'performers', priority: 'medium' as const, status: 'pending' as const },
+      { label: 'Send rider to venue', category: 'logistics', priority: 'medium' as const, status: 'pending' as const },
+      { label: 'Confirm load-in time', category: 'logistics', priority: 'medium' as const, status: 'pending' as const },
+      { label: 'Send balance invoice', category: 'finance', priority: 'medium' as const, status: 'pending' as const },
+      { label: 'Balance received', category: 'finance', priority: 'medium' as const, status: 'pending' as const },
+    ];
+    for (const item of defaults) {
+      await addChecklistItem(showId, item);
+    }
+  };
+
+  if (total === 0) {
     return (
       <div className="p-6 text-center py-16">
         <CheckSquare size={32} className="mx-auto mb-4 text-slate-600" />
         <p className="text-sm text-slate-500">No checklist items yet.</p>
-        <button
-          onClick={() => setAdding(true)}
-          className="mt-4 text-xs text-amber-500 hover:text-amber-400"
-        >
-          + Add first item
-        </button>
+        <div className="flex gap-3 justify-center mt-4">
+          <button
+            onClick={seedDefaults}
+            className="text-xs bg-amber-500 text-slate-950 px-4 py-2 rounded-lg font-bold hover:bg-amber-400"
+          >
+            Load Default Checklist
+          </button>
+          <button
+            onClick={() => setAdding(true)}
+            className="text-xs text-slate-400 hover:text-white bg-white/5 px-4 py-2 rounded-lg"
+          >
+            Start Empty
+          </button>
+        </div>
       </div>
     );
   }

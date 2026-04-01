@@ -8,6 +8,13 @@ export type BrainRequestType = 'query' | 'action' | 'smart_create' | 'email_scan
 export type BrainRequestStatus = 'pending' | 'processing' | 'complete' | 'error';
 export type BrainRequestSource = 'dashboard' | 'cron';
 
+export interface BrainAttachment {
+  name: string;
+  url: string;
+  type: string;
+  size: number;
+}
+
 export interface BrainRequestContext {
   pastedText?: string;
   actionSteps?: Array<{
@@ -15,6 +22,8 @@ export interface BrainRequestContext {
     params: Record<string, any>;
   }>;
   emailId?: string;
+  attachments?: BrainAttachment[];
+  attachmentComment?: string;
 }
 
 export interface BrainRequestResult {

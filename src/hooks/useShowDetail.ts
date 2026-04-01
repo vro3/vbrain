@@ -58,7 +58,7 @@ export function useShowDetail(showId: string | undefined): UseShowDetailReturn {
       }),
       subscribeToChecklist(showId, setChecklist),
       subscribeToConversations(showId, setConversations),
-      subscribeToPayables(showId, setPayables),
+      subscribeToPayables(undefined, setPayables),
     ];
 
     return () => unsubs.forEach((u) => u());

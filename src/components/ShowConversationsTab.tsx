@@ -8,6 +8,26 @@ import { useState } from 'react';
 import { Mail, ChevronDown, ChevronRight, AlertCircle, Clock } from 'lucide-react';
 import type { ShowConversation, ShowIntelligence } from '../types/show';
 
+/** Parse dates that could be ISO string, Firestore Timestamp, or epoch ms */
+function safeDate(val: any): Date | null {
+  if (!val) return null;
+  if (val.toDate && typeof val.toDate === 'function') return val.toDate(); // Firestore Timestamp
+  if (val.seconds) return new Date(val.seconds * 1000); // Firestore Timestamp plain object
+  if (typeof val === 'number') return new Date(val); // epoch ms
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+function formatDate(val: any): string {
+  const d = safeDate(val);
+  return d ? d.toLocaleString() : '';
+}
+
+function formatShortDate(val: any): string {
+  const d = safeDate(val);
+  return d ? d.toLocaleDateString() : '';
+}
+
 interface Props {
   conversations: ShowConversation[];
   show: ShowIntelligence;
@@ -64,7 +84,7 @@ export default function ShowConversationsTab({ conversations, show }: Props) {
                 <div className="font-medium text-sm truncate">{conv.subject || 'No subject'}</div>
                 <div className="text-xs text-slate-500 mt-0.5">
                   {lastMsg?.from?.name || lastMsg?.from?.email || 'Unknown'} · {msgCount} message{msgCount !== 1 ? 's' : ''}
-                  {conv.lastMessageAt && <span> · {new Date(conv.lastMessageAt).toLocaleDateString()}</span>}
+                  {conv.lastMessageAt && <span> · {formatShortDate(conv.lastMessageAt)}</span>}
                 </div>
               </div>
               {conv.summary?.urgency && (
@@ -120,7 +140,7 @@ export default function ShowConversationsTab({ conversations, show }: Props) {
                         </div>
                         <div className="flex items-center gap-1 text-xs text-slate-500">
                           <Clock size={10} />
-                          {new Date(msg.date).toLocaleString()}
+                          {formatDate(msg.date)}
                         </div>
                       </div>
                       <div className="text-sm text-slate-300 whitespace-pre-wrap leading-relaxed">

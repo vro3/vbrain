@@ -164,16 +164,26 @@ export function subscribeToConversations(
 // --- Payables ---
 
 export function subscribeToPayables(
-  showId: string,
+  showDate: string | undefined,
   callback: (payables: PerformerPayable[]) => void,
 ): Unsubscribe {
+  // Payables don't have showId — match by showDate if available, otherwise load recent
+  if (showDate) {
+    const q = query(
+      collection(db, 'performer_payables'),
+      where('showDate', '==', showDate),
+    );
+    return onSnapshot(q, (snap) => {
+      callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as PerformerPayable)));
+    });
+  }
+  // Fallback: load recent payables
   const q = query(
     collection(db, 'performer_payables'),
-    where('showId', '==', showId),
+    orderBy('dueDate', 'asc'),
+    limit(50),
   );
   return onSnapshot(q, (snap) => {
-    callback(
-      snap.docs.map((d) => ({ id: d.id, ...d.data() } as PerformerPayable)),
-    );
+    callback(snap.docs.map((d) => ({ id: d.id, ...d.data() } as PerformerPayable)));
   });
 }
