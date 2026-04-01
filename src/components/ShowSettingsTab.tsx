@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { Trash2, AlertTriangle, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { db } from '../lib/firebase-client';
-import { doc, deleteDoc } from 'firebase/firestore';
+import { doc, deleteDoc, collection, setDoc } from 'firebase/firestore';
 import type { ShowIntelligence } from '../types/show';
 
 interface Props {
@@ -28,7 +28,30 @@ export default function ShowSettingsTab({ show }: Props) {
     setConfirmStep(2);
     setError(null);
     try {
+      // Delete from Firestore
       await deleteDoc(doc(db, 'show_intelligence', show.id));
+
+      // If linked to ShowSync, tell Brain to delete from Sheets too
+      if (show.linkedShowId) {
+        const brainRef = doc(collection(db, 'brain_requests'));
+        await setDoc(brainRef, {
+          id: brainRef.id,
+          type: 'action',
+          source: 'dashboard',
+          prompt: `Delete show ${show.eventName || show.clientName} (${show.linkedShowId}) from ShowSync Google Sheet`,
+          showId: show.id,
+          context: {
+            actionSteps: [{
+              tool: 'update_show',
+              params: { showId: show.linkedShowId, action: 'delete' },
+            }],
+          },
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+          ttl: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        });
+      }
+
       navigate('/');
     } catch (err: any) {
       setError(err.message);
@@ -57,7 +80,7 @@ export default function ShowSettingsTab({ show }: Props) {
           <AlertTriangle size={16} /> Danger Zone
         </h3>
         <p className="text-xs text-slate-400 mb-4">
-          Deleting a show permanently removes it from Firestore. This does NOT remove it from ShowSync (Google Sheets) — the next sync may recreate it.
+          Deleting a show removes it from Firestore immediately. If linked to ShowSync, the Brain will also delete it from Google Sheets (may take ~45 seconds).
         </p>
 
         {error && (

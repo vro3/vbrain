@@ -43,9 +43,26 @@ const payableStatusStyle: Record<string, string> = {
 };
 
 export default function ShowFinancialsTab({ show, payables, updateField }: Props) {
-  const totalPayables = payables.reduce((sum, p) => sum + (p.amount || 0), 0);
+  // Filter payables to only performers on this show's roster
+  const rosterNames = new Set(
+    (show.roster?.performers || []).map(p => p.name.toLowerCase().trim())
+  );
+  const showPayables = rosterNames.size > 0
+    ? payables.filter(p => {
+        const name = (p.performerName || p.vendorName || '').toLowerCase().trim();
+        return rosterNames.has(name);
+      })
+    : [];
+
+  // Also calculate pay from roster directly as fallback
+  const rosterPay = (show.roster?.performers || [])
+    .filter(p => p.status !== 'declined' && p.status !== 'unavailable')
+    .reduce((sum, p) => sum + (parseFloat(p.pay?.replace(/[^0-9.]/g, '') || '0')), 0);
+
+  const payablesTotal = showPayables.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const totalPerformerCost = payablesTotal > 0 ? payablesTotal : rosterPay;
   const fee = parseFloat(show.fee?.replace(/[^0-9.]/g, '') || '0');
-  const netProfit = fee - totalPayables;
+  const netProfit = fee - totalPerformerCost;
 
   return (
     <div className="p-6 space-y-8">
@@ -69,8 +86,8 @@ export default function ShowFinancialsTab({ show, payables, updateField }: Props
             <span className="font-mono text-emerald-400">${fee.toLocaleString()}</span>
           </div>
           <div className="flex justify-between">
-            <span className="text-slate-400">Performer Pay ({payables.length})</span>
-            <span className="font-mono text-red-400">-${totalPayables.toLocaleString()}</span>
+            <span className="text-slate-400">Performer Pay ({show.roster?.performers?.filter(p => p.status !== 'declined' && p.status !== 'unavailable').length || 0})</span>
+            <span className="font-mono text-red-400">-${totalPerformerCost.toLocaleString()}</span>
           </div>
           <div className="flex justify-between pt-2 border-t border-white/6 font-bold">
             <span>Net Profit</span>
@@ -82,7 +99,7 @@ export default function ShowFinancialsTab({ show, payables, updateField }: Props
       </div>
 
       {/* Performer Payables */}
-      {payables.length > 0 && (
+      {showPayables.length > 0 && (
         <div className="border-t border-white/6 pt-4">
           <h3 className="col-header mb-4">Performer Payables</h3>
           <table className="w-full text-left text-sm">
@@ -95,7 +112,7 @@ export default function ShowFinancialsTab({ show, payables, updateField }: Props
               </tr>
             </thead>
             <tbody>
-              {payables.map((p) => (
+              {showPayables.map((p) => (
                 <tr key={p.id} className="border-b border-white/6 hover:bg-white/[0.02] transition-colors">
                   <td className="p-3 font-medium">{p.performerName || p.vendorName || 'Unknown'}</td>
                   <td className="p-3 font-mono text-cyan-400">${(p.amount || 0).toLocaleString()}</td>
@@ -112,7 +129,7 @@ export default function ShowFinancialsTab({ show, payables, updateField }: Props
         </div>
       )}
 
-      {payables.length === 0 && (
+      {showPayables.length === 0 && (
         <div className="border-t border-white/6 pt-4">
           <h3 className="col-header mb-2">Performer Payables</h3>
           <p className="text-sm text-slate-500 text-center py-8">
