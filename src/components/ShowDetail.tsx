@@ -6,7 +6,7 @@
 
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, Loader2, AlertTriangle, FileText, PenTool } from 'lucide-react';
 import { useShowDetail } from '../hooks/useShowDetail';
 import ShowOverviewTab from './ShowOverviewTab';
 import ShowRosterTab from './ShowRosterTab';
@@ -61,9 +61,19 @@ export default function ShowDetail() {
 
   return (
     <div className="space-y-6">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-400 hover:text-white">
-        <ArrowLeft size={16} /> Back
-      </button>
+      <div className="flex justify-between items-center">
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-slate-400 hover:text-white">
+          <ArrowLeft size={16} /> Back
+        </button>
+        <div className="flex gap-2">
+          <button onClick={() => navigate('/tools', { state: { tool: 'invoice', showId: show.id } })} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 hover:bg-emerald-500/20 transition-colors">
+            <FileText size={12} /> Invoice
+          </button>
+          <button onClick={() => navigate('/tools', { state: { tool: 'contract', showId: show.id } })} className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 hover:bg-cyan-500/20 transition-colors">
+            <PenTool size={12} /> Contract
+          </button>
+        </div>
+      </div>
 
       {/* Header */}
       <div className="glass p-6 rounded-2xl">
