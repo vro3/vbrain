@@ -14,6 +14,7 @@ import ShowConversationsTab from './ShowConversationsTab';
 import ShowChecklistTab from './ShowChecklistTab';
 import ShowFinancialsTab from './ShowFinancialsTab';
 import ShowDocumentsTab from './ShowDocumentsTab';
+import ShowSettingsTab from './ShowSettingsTab';
 
 const statusColor = (status: string) => {
   const s = status.toLowerCase();
@@ -24,7 +25,7 @@ const statusColor = (status: string) => {
   return 'bg-amber-500/10 text-amber-500';
 };
 
-type TabName = 'Overview' | 'Roster' | 'Conversations' | 'Checklist' | 'Financials' | 'Documents';
+type TabName = 'Overview' | 'Roster' | 'Conversations' | 'Checklist' | 'Financials' | 'Documents' | 'Settings';
 
 export default function ShowDetail() {
   const { showId } = useParams();
@@ -56,7 +57,7 @@ export default function ShowDetail() {
   const venueLocation = [show.venueCity, show.venueState].filter(Boolean).join(', ');
   const fullVenue = [venue, venueLocation].filter(Boolean).join(' — ');
 
-  const tabs: TabName[] = ['Overview', 'Roster', 'Conversations', 'Checklist', 'Financials', 'Documents'];
+  const tabs: TabName[] = ['Overview', 'Roster', 'Conversations', 'Checklist', 'Financials', 'Documents', 'Settings'];
 
   return (
     <div className="space-y-6">
@@ -66,36 +67,26 @@ export default function ShowDetail() {
 
       {/* Header */}
       <div className="glass p-6 rounded-2xl">
-        <div className="flex justify-between items-start">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight mb-2">{displayName}</h1>
-            <div className="flex gap-4 text-sm text-slate-400 flex-wrap">
-              {show.showDate && <span className="font-mono">{show.showDate}</span>}
-              {fullVenue && <span>{fullVenue}</span>}
-              {show.status && (
-                <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase ${statusColor(show.status)}`}>
-                  {show.status}
-                </span>
-              )}
-              {show.roster && (
-                <span className="text-xs">
-                  {show.roster.confirmed} confirmed / {show.roster.pending} pending / {show.roster.totalPerformers} total
-                </span>
-              )}
-            </div>
-          </div>
-          <div className="text-right flex items-center gap-3">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold tracking-tight mb-2">{displayName}</h1>
+          <div className="flex gap-4 text-sm text-slate-400 flex-wrap justify-center">
+            {show.showDate && <span className="font-mono">{show.showDate}</span>}
+            {fullVenue && <span>{fullVenue}</span>}
+            {show.status && (
+              <span className={`px-2 py-0.5 rounded-full text-xs font-bold uppercase ${statusColor(show.status)}`}>
+                {show.status}
+              </span>
+            )}
+            {show.roster && (
+              <span className="text-xs">
+                {show.roster.confirmed} confirmed / {show.roster.pending} pending / {show.roster.totalPerformers} total
+              </span>
+            )}
             {saving && <span className="text-xs text-amber-400 animate-pulse">Saving...</span>}
             {saveError && (
               <span className="text-xs text-red-400 flex items-center gap-1">
                 <AlertTriangle size={12} /> Save failed
               </span>
-            )}
-            {show.completeness !== undefined && (
-              <div>
-                <div className="text-xs text-slate-500 mb-1">Complete</div>
-                <div className="text-2xl font-bold font-mono text-cyan-400">{show.completeness}%</div>
-              </div>
             )}
           </div>
         </div>
@@ -137,6 +128,7 @@ export default function ShowDetail() {
         {activeTab === 'Checklist' && <ShowChecklistTab checklist={checklist} showId={show.id} />}
         {activeTab === 'Financials' && <ShowFinancialsTab show={show} payables={payables} updateField={updateField} />}
         {activeTab === 'Documents' && <ShowDocumentsTab show={show} />}
+        {activeTab === 'Settings' && <ShowSettingsTab show={show} />}
       </div>
     </div>
   );

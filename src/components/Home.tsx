@@ -53,6 +53,7 @@ export default function Home() {
   const [input, setInput] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [shows, setShows] = useState<UpcomingShow[]>([]);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'confirmed' | 'inquiry'>('all');
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
@@ -106,7 +107,7 @@ export default function Home() {
       collection(db, 'show_intelligence'),
       where('showDate', '>=', today),
       orderBy('showDate', 'asc'),
-      limit(10)
+      limit(50)
     );
 
     const unsub = onSnapshot(q, (snap) => {
@@ -380,7 +381,7 @@ export default function Home() {
 
       {/* Upcoming Shows */}
       <div className="col-span-12 lg:col-span-5 flex flex-col glass rounded-2xl p-6">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-4">
           <h2 className="col-header">Upcoming Shows</h2>
           <button
             onClick={() => setIsModalOpen(true)}
@@ -389,11 +390,24 @@ export default function Home() {
             <Plus size={14} /> New Show
           </button>
         </div>
+        <div className="flex gap-1 mb-4">
+          {(['all', 'confirmed', 'inquiry'] as const).map(f => (
+            <button
+              key={f}
+              onClick={() => setStatusFilter(f)}
+              className={`px-3 py-1 rounded-md text-xs font-bold capitalize transition-colors ${
+                statusFilter === f ? 'bg-amber-500 text-slate-950' : 'bg-white/5 text-slate-400 hover:text-white'
+              }`}
+            >
+              {f} ({f === 'all' ? shows.length : shows.filter(s => s.status === f).length})
+            </button>
+          ))}
+        </div>
         <div className="space-y-3 overflow-auto">
-          {shows.length === 0 && (
-            <p className="text-sm text-slate-500 text-center py-8">No upcoming shows</p>
-          )}
-          {shows.map(show => (
+          {(() => {
+            const filtered = statusFilter === 'all' ? shows : shows.filter(s => s.status === statusFilter);
+            if (filtered.length === 0) return <p className="text-sm text-slate-500 text-center py-8">{statusFilter === 'all' ? 'No upcoming shows' : `No ${statusFilter} shows`}</p>;
+            return filtered.map(show => (
             <div
               key={show.id}
               onClick={() => navigate(`/show/${show.id}`)}
@@ -410,7 +424,8 @@ export default function Home() {
                 {show.status}
               </span>
             </div>
-          ))}
+          ));
+          })()}
         </div>
       </div>
 
