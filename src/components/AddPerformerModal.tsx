@@ -41,7 +41,7 @@ const PERFORMERS = [
 
 export default function AddPerformerModal({ show, isOpen, onClose }: Props) {
   const [search, setSearch] = useState('');
-  const [pay, setPay] = useState('');
+  const [payOverrides, setPayOverrides] = useState<Record<string, string>>({});
   const [showNewForm, setShowNewForm] = useState(false);
   const [newName, setNewName] = useState('');
   const [newEmail, setNewEmail] = useState('');
@@ -58,12 +58,13 @@ export default function AddPerformerModal({ show, isOpen, onClose }: Props) {
 
   const addPerformer = async (performer: { id: string; name: string; email: string; phone?: string; defaultPay?: string }) => {
     const currentRoster = show.roster || { totalPerformers: 0, confirmed: 0, declined: 0, pending: 0, performers: [] };
+    const finalPay = payOverrides[performer.id] || performer.defaultPay || '0';
     const newPerformer: Record<string, any> = {
       name: performer.name,
       email: performer.email,
       phone: performer.phone,
       performerId: performer.id,
-      pay: pay || performer.defaultPay || '0',
+      pay: finalPay,
       status: 'inquired',
     };
     // Strip undefined
@@ -98,17 +99,6 @@ export default function AddPerformerModal({ show, isOpen, onClose }: Props) {
           <button onClick={onClose}><X size={18} className="text-slate-400 hover:text-white" /></button>
         </div>
 
-        {/* Pay override */}
-        <div className="px-4 pt-3 flex items-center gap-2">
-          <span className="text-xs text-slate-500">Pay override:</span>
-          <input
-            value={pay}
-            onChange={e => setPay(e.target.value)}
-            placeholder="Default"
-            className="bg-white/5 border border-white/6 rounded px-2 py-1 text-sm w-24 focus:outline-none focus:border-amber-500/50"
-          />
-        </div>
-
         {/* Search */}
         <div className="px-4 pt-3">
           <div className="relative">
@@ -126,17 +116,25 @@ export default function AddPerformerModal({ show, isOpen, onClose }: Props) {
         {/* Performer list */}
         <div className="flex-1 overflow-y-auto p-4 space-y-1">
           {filtered.map(p => (
-            <button
-              key={p.id}
-              onClick={() => addPerformer(p)}
-              className="w-full flex items-center justify-between p-3 rounded-lg hover:bg-white/5 transition-colors text-left"
-            >
-              <div>
+            <div key={p.id} className="flex items-center gap-2 p-3 rounded-lg hover:bg-white/5 transition-colors">
+              <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium">{p.name}</div>
-                <div className="text-[11px] text-slate-500">{p.email}</div>
+                <div className="text-[11px] text-slate-500">{p.email}{p.skill ? ` · ${p.skill}` : ''}</div>
               </div>
-              <div className="text-xs text-slate-400 font-mono">${pay || p.defaultPay}</div>
-            </button>
+              <input
+                value={payOverrides[p.id] ?? p.defaultPay}
+                onChange={e => setPayOverrides(prev => ({ ...prev, [p.id]: e.target.value }))}
+                onClick={e => e.stopPropagation()}
+                className="bg-white/5 border border-white/6 rounded px-2 py-1 text-sm font-mono w-20 text-right focus:outline-none focus:border-amber-500/50"
+                placeholder="$"
+              />
+              <button
+                onClick={() => addPerformer(p)}
+                className="bg-amber-500 text-slate-950 px-3 py-1 rounded-lg text-xs font-bold hover:bg-amber-400 shrink-0"
+              >
+                Add
+              </button>
+            </div>
           ))}
           {filtered.length === 0 && !showNewForm && (
             <p className="text-sm text-slate-500 text-center py-4">No matching performers.</p>
