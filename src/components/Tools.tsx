@@ -4,10 +4,12 @@
  * Created: 2026-04-01
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { FileText, PenTool, Mic, Clock, X, Plus, Trash2, Send, Download, DollarSign, Loader2 } from 'lucide-react';
 import { pdf } from '@react-pdf/renderer';
 import InvoicePDFDocument from './InvoicePDF';
+import { db } from '../lib/firebase-client';
+import { collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore';
 
 // ============================================================
 // INVOICE GENERATOR (full feature parity with v1)
@@ -56,9 +58,47 @@ const DEFAULT_INVOICE: InvoiceData = {
   fromEmail: 'vr@vrcreativegroup.com',
 };
 
+interface ShowOption { id: string; name: string; client: string; date: string; venue: string; fee: string; contactEmail: string }
+
 const InvoiceEditor = ({ onClose }: { onClose: () => void }) => {
   const [data, setData] = useState<InvoiceData>(DEFAULT_INVOICE);
   const [invoiceMode, setInvoiceMode] = useState<'full' | 'deposit' | 'balance'>('full');
+  const [shows, setShows] = useState<ShowOption[]>([]);
+
+  // Load upcoming shows for auto-fill
+  useEffect(() => {
+    const today = new Date().toISOString().split('T')[0];
+    const q = query(collection(db, 'show_intelligence'), where('showDate', '>=', today), orderBy('showDate', 'asc'), limit(50));
+    getDocs(q).then(snap => {
+      setShows(snap.docs.map(d => {
+        const s = d.data();
+        return {
+          id: d.id,
+          name: s.eventName || s.clientName || 'Untitled',
+          client: s.clientName || '',
+          date: s.showDate || '',
+          venue: [s.venueName, s.venueAddress].filter(Boolean).join('\n'),
+          fee: s.fee?.replace(/[^0-9.]/g, '') || '',
+          contactEmail: s.clientContacts?.[0]?.email || s.onsiteContact?.email || '',
+        };
+      }));
+    });
+  }, []);
+
+  const handleShowSelect = (showId: string) => {
+    const show = shows.find(s => s.id === showId);
+    if (!show) return;
+    const fee = parseFloat(show.fee) || 0;
+    setData(prev => ({
+      ...prev,
+      clientName: show.client || prev.clientName,
+      clientEmail: show.contactEmail || prev.clientEmail,
+      eventName: show.name,
+      eventDate: show.date,
+      billToAddress: show.venue || prev.billToAddress,
+      items: [{ id: '1', description: 'Performance Fee', quantity: 1, price: fee }],
+    }));
+  };
 
   const updateField = useCallback(<K extends keyof InvoiceData>(field: K, value: InvoiceData[K]) => {
     setData(prev => ({ ...prev, [field]: value }));
@@ -166,6 +206,23 @@ const InvoiceEditor = ({ onClose }: { onClose: () => void }) => {
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-8 py-6 space-y-6">
+          {/* Auto-fill from Show */}
+          {shows.length > 0 && (
+            <div>
+              <label className="col-header text-xs mb-2 block">Auto-fill from Show</label>
+              <select
+                onChange={e => handleShowSelect(e.target.value)}
+                className="w-full bg-white/5 border border-white/6 rounded-lg p-3 text-sm focus:outline-none focus:border-amber-500/50"
+                defaultValue=""
+              >
+                <option value="">Select a show to auto-fill...</option>
+                {shows.map(s => (
+                  <option key={s.id} value={s.id}>{s.date} — {s.name} ({s.client})</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {/* Invoice Mode */}
           <div className="flex gap-2">
             {(['full', 'deposit', 'balance'] as const).map(mode => (
