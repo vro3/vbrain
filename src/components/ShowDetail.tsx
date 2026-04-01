@@ -68,7 +68,10 @@ export default function ShowDetail() {
       {/* Header */}
       <div className="glass p-6 rounded-2xl">
         <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight mb-2">{displayName}</h1>
+          <h1 className="text-3xl font-bold tracking-tight mb-1">{displayName}</h1>
+          {show.eventType && (
+            <div className="text-sm text-cyan-400 font-mono mb-2">{show.eventType}</div>
+          )}
           <div className="flex gap-4 text-sm text-slate-400 flex-wrap justify-center">
             {show.showDate && <span className="font-mono">{show.showDate}</span>}
             {fullVenue && <span>{fullVenue}</span>}
