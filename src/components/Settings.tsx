@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { Zap, Mail, FileText, Calendar as CalendarIcon, RefreshCw } from 'lucide-react';
 import { db } from '../lib/firebase-client';
 import { collection, query, where, orderBy, limit, onSnapshot, getCountFromServer } from 'firebase/firestore';
+import RosterImport from './RosterImport';
 
 export default function Settings() {
   const [pendingCount, setPendingCount] = useState(0);
@@ -89,6 +90,10 @@ export default function Settings() {
             <span className={`text-xs font-bold uppercase ${int.color}`}>{int.status}</span>
           </div>
         ))}
+      </div>
+
+      <div className="glass p-8 rounded-2xl border border-white/6">
+        <RosterImport />
       </div>
     </div>
   );
