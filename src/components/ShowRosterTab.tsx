@@ -1,8 +1,8 @@
 /**
  * ShowRosterTab — Full performer roster matching old vCommand ShowSync layout.
- * Top: performer table with inline status + action buttons.
+ * Top: performer rows with all 3 stage badges + send buttons inline.
  * Bottom: email activity timeline per performer.
- * Created: 2026-04-01 | Rewritten to match old layout: 2026-04-01
+ * Created: 2026-04-01
  */
 
 import { useState } from 'react';
@@ -24,25 +24,21 @@ function safeShortDate(val: any): string {
   return isNaN(d.getTime()) ? '' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-// Status badge for the performer row (top section)
-function InquiryBadge({ p }: { p: RosterPerformer }) {
-  if (!p.inquirySentAt) return <span className="text-[10px] text-slate-600">Not sent</span>;
-  if (p.inquiryResponse === 'Available') return <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400">Inq: Available</span>;
-  if (p.inquiryResponse === 'Unavailable') return <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400">Inq: Unavailable</span>;
-  if (p.inquiryOpenedAt) return <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400">Inq: Opened</span>;
-  return <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400">Inq: Sent</span>;
-}
+// Compact badge for a single email stage
+function StageBadge({ p, stage, label }: { p: RosterPerformer; stage: EmailStageType; label: string }) {
+  const sentAt = p[`${stage}SentAt` as keyof RosterPerformer] as string | undefined;
+  const openedAt = p[`${stage}OpenedAt` as keyof RosterPerformer] as string | undefined;
+  const response = p[`${stage}Response` as keyof RosterPerformer] as string | undefined;
 
-function ActionButton({ label, icon, disabled, loading, onClick }: { label: string; icon: React.ReactNode; disabled?: boolean; loading?: boolean; onClick: () => void }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled || loading}
-      className="flex items-center gap-1 px-2.5 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider bg-white/5 text-slate-300 hover:bg-white/10 border border-white/10 transition-colors disabled:opacity-30"
-    >
-      {loading ? <Loader2 size={10} className="animate-spin" /> : icon} {label}
-    </button>
-  );
+  if (!sentAt) return <span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-800 text-slate-600">{label}</span>;
+
+  const isPositive = response === 'Available' || response === 'Accepted' || response === 'Confirmed';
+  const isNegative = response === 'Unavailable' || response === 'Declined' || response === 'Not Confirmed';
+
+  if (isPositive) return <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400">{label}: {response}</span>;
+  if (isNegative) return <span className="text-[10px] px-2 py-0.5 rounded-full bg-red-500/10 text-red-400">{label}: {response}</span>;
+  if (openedAt) return <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400">{label}: Opened</span>;
+  return <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400">{label}: Sent</span>;
 }
 
 // Timeline row for the email activity section
@@ -87,12 +83,15 @@ function ActivityTimeline({ p, stage, label }: { p: RosterPerformer; stage: Emai
   );
 }
 
-function SendEmailButton({ performer, stage, show }: { performer: RosterPerformer; stage: EmailStageType; show: ShowIntelligence }) {
+// Send button — always visible, shows "Send" or "Re-send"
+function SendButton({ performer, stage, show }: { performer: RosterPerformer; stage: EmailStageType; show: ShowIntelligence }) {
   const brain = useBrainRequest();
   const [sent, setSent] = useState(false);
 
   const showName = show.eventName || show.clientName || 'Show';
   const venue = show.venueName || '';
+  const alreadySent = performer[`${stage}SentAt` as keyof RosterPerformer];
+  const buttonLabel = alreadySent ? `Re-${stage}` : stage.charAt(0).toUpperCase() + stage.slice(1);
 
   const handleSend = async () => {
     if (!performer.email) return;
@@ -122,25 +121,27 @@ function SendEmailButton({ performer, stage, show }: { performer: RosterPerforme
       },
     });
     setSent(true);
+    setTimeout(() => setSent(false), 3000);
   };
 
-  if (sent) return <span className="text-[10px] text-emerald-400">Sent!</span>;
-
-  const alreadySent = performer[`${stage}SentAt` as keyof RosterPerformer];
-  if (alreadySent) return null;
-
-  // Check prerequisites
-  if (stage === 'offer' && !performer.inquiryResponse) return null;
-  if (stage === 'confirmation' && !performer.offerResponse) return null;
+  if (sent) return <span className="text-[10px] text-emerald-400 px-2">Queued!</span>;
+  if (!performer.email) return <span className="text-[10px] text-slate-700 px-1">No email</span>;
 
   return (
-    <ActionButton
-      label={stage === 'inquiry' ? 'Inquiry' : stage === 'offer' ? 'Offer' : 'Confirm'}
-      icon={<Send size={10} />}
-      disabled={!performer.email || brain.isWorking}
-      loading={brain.isWorking}
+    <button
       onClick={handleSend}
-    />
+      disabled={brain.isWorking}
+      className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors ${
+        brain.isWorking
+          ? 'bg-white/5 text-slate-500'
+          : alreadySent
+          ? 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/6'
+          : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20'
+      }`}
+    >
+      {brain.isWorking ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
+      {brain.isWorking ? '...' : buttonLabel}
+    </button>
   );
 }
 
@@ -187,7 +188,7 @@ export default function ShowRosterTab({ show }: Props) {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Header with action buttons */}
+      {/* Header */}
       <div className="flex justify-between items-center">
         <h3 className="col-header flex items-center gap-2"><Users size={14} /> Performers ({roster.totalPerformers})</h3>
         <div className="flex gap-2">
@@ -200,54 +201,44 @@ export default function ShowRosterTab({ show }: Props) {
         </div>
       </div>
 
-      {/* Performer table — compact rows with inline status + actions */}
+      {/* Performer rows */}
       <div className="space-y-2">
         {roster.performers.map((p, i) => (
-          <div key={`${p.name}-${i}`} className="flex items-center gap-3 bg-white/[0.03] border border-white/6 rounded-xl p-3 hover:border-white/10 transition-colors">
-            {/* Status dot */}
-            <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-              p.status === 'confirmed' ? 'bg-emerald-500' :
-              p.status === 'declined' || p.status === 'unavailable' ? 'bg-red-500' :
-              p.status === 'offered' ? 'bg-cyan-500' :
-              'bg-amber-500'
-            }`} />
-
-            {/* Name + email */}
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
+          <div key={`${p.name}-${i}`} className="bg-white/[0.03] border border-white/6 rounded-xl p-3 hover:border-white/10 transition-colors">
+            {/* Top line: name, pay, stage badges */}
+            <div className="flex items-center gap-3 mb-2">
+              <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                p.status === 'confirmed' ? 'bg-emerald-500' :
+                p.status === 'declined' || p.status === 'unavailable' ? 'bg-red-500' :
+                p.status === 'offered' ? 'bg-cyan-500' : 'bg-amber-500'
+              }`} />
+              <div className="min-w-0 flex-1">
                 <span className="font-medium text-sm">{p.name}</span>
+                {p.email && <span className="text-[11px] text-slate-500 ml-2">{p.email}</span>}
               </div>
-              {p.email && <div className="text-[11px] text-slate-500">{p.email}</div>}
+              <span className="text-sm font-mono text-slate-300 shrink-0">{p.pay ? `$${p.pay}` : ''}</span>
             </div>
 
-            {/* Pay */}
-            <div className="text-sm font-mono text-slate-300 shrink-0 w-16 text-right">
-              {p.pay ? `$ ${p.pay}` : ''}
+            {/* Stage badges + send buttons row */}
+            <div className="flex items-center gap-2 flex-wrap ml-5">
+              <StageBadge p={p} stage="inquiry" label="Inq" />
+              <SendButton performer={p} stage="inquiry" show={show} />
+              <span className="text-slate-700">|</span>
+              <StageBadge p={p} stage="offer" label="Offer" />
+              <SendButton performer={p} stage="offer" show={show} />
+              <span className="text-slate-700">|</span>
+              <StageBadge p={p} stage="confirmation" label="Conf" />
+              <SendButton performer={p} stage="confirmation" show={show} />
+              <span className="text-slate-700">|</span>
+              <button className="text-slate-600 hover:text-slate-300 transition-colors"><MessageSquare size={12} /></button>
+              <button
+                onClick={() => handleRemove(p)}
+                disabled={removingId === (p.performerId || p.name)}
+                className="text-slate-700 hover:text-red-400 transition-colors"
+              >
+                {removingId === (p.performerId || p.name) ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
+              </button>
             </div>
-
-            {/* Inquiry status badge */}
-            <InquiryBadge p={p} />
-
-            {/* Action buttons */}
-            <div className="flex gap-1 shrink-0">
-              <SendEmailButton performer={p} stage="inquiry" show={show} />
-              <SendEmailButton performer={p} stage="offer" show={show} />
-              <SendEmailButton performer={p} stage="confirmation" show={show} />
-            </div>
-
-            {/* Conversation icon */}
-            <button className="text-slate-600 hover:text-slate-300 transition-colors shrink-0">
-              <MessageSquare size={14} />
-            </button>
-
-            {/* Remove */}
-            <button
-              onClick={() => handleRemove(p)}
-              disabled={removingId === (p.performerId || p.name)}
-              className="text-slate-700 hover:text-red-400 transition-colors shrink-0"
-            >
-              {removingId === (p.performerId || p.name) ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
-            </button>
           </div>
         ))}
       </div>
