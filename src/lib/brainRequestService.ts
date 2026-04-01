@@ -33,11 +33,11 @@ export async function createBrainRequest(params: {
     type: params.type,
     source: 'dashboard',
     prompt: params.prompt,
-    showId: params.showId,
-    context: params.context,
     status: 'pending',
     createdAt: now.toISOString(),
     ttl: ttl.toISOString(),
+    ...(params.showId && { showId: params.showId }),
+    ...(params.context && { context: params.context }),
   };
 
   await setDoc(docRef, request);
