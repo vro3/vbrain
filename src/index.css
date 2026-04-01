@@ -1,0 +1,45 @@
+@import "tailwindcss";
+
+@import "tailwindcss";
+
+@theme {
+  --color-bg: #05070a;
+  --color-surface: #0a0d14;
+  --color-elevated: #10141e;
+  --color-line: rgba(255, 255, 255, 0.06);
+  --color-amber: #EAB308;
+  --color-cyan: #22D3EE;
+  --color-emerald: #10B981;
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: white;
+  font-family: var(--font-sans);
+}
+
+/* Technical Dashboard Grid */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 1rem;
+}
+
+/* Subtle glassmorphism */
+.glass {
+  background: rgba(16, 20, 30, 0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--color-line);
+}
+
+/* Italic serif headers for a human touch */
+.col-header {
+  font-family: 'Georgia', serif;
+  font-style: italic;
+  font-size: 11px;
+  opacity: 0.5;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
