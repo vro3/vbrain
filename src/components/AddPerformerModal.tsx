@@ -78,7 +78,7 @@ export default function AddPerformerModal({ show, isOpen, onClose }: Props) {
         performers: [...currentRoster.performers, newPerformer],
       },
     });
-    setPay('');
+    setPayOverrides({});
     setSearch('');
     onClose();
   };

@@ -5,7 +5,8 @@
  */
 
 import { useState } from 'react';
-import { Mail, ChevronDown, ChevronRight, AlertCircle, Clock } from 'lucide-react';
+import { Mail, ChevronDown, ChevronRight, AlertCircle, Clock, Send, Loader2, PenLine } from 'lucide-react';
+import { useBrainRequest } from '../hooks/useBrainRequest';
 import type { ShowConversation, ShowIntelligence } from '../types/show';
 
 /** Parse dates that could be ISO string, Firestore Timestamp, or epoch ms */
@@ -45,6 +46,63 @@ const urgencyColor: Record<string, string> = {
   low: 'bg-slate-500/10 text-slate-400',
 };
 
+function ComposeEmail({ show }: { show: ShowIntelligence }) {
+  const brain = useBrainRequest();
+  const [open, setOpen] = useState(false);
+  const [to, setTo] = useState(show.clientContacts?.[0]?.email || show.onsiteContact?.email || '');
+  const [subject, setSubject] = useState(`Re: ${show.eventName || show.clientName || 'Show'}`);
+  const [body, setBody] = useState('');
+  const [sent, setSent] = useState(false);
+
+  const handleSend = async () => {
+    if (!to || !body) return;
+    await brain.sendRequest({
+      type: 'action',
+      prompt: `Send email to ${to}: "${subject}"`,
+      showId: show.id,
+      context: {
+        actionSteps: [{
+          tool: 'send_email',
+          params: { to, subject, body, from: 'vr@vrcreativegroup.com' },
+        }],
+      },
+    });
+    setSent(true);
+    setTimeout(() => { setSent(false); setOpen(false); setBody(''); }, 3000);
+  };
+
+  if (!open) {
+    return (
+      <button onClick={() => setOpen(true)} className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider bg-amber-500 text-slate-950 hover:bg-amber-400 transition-colors">
+        <PenLine size={14} /> Compose Email
+      </button>
+    );
+  }
+
+  return (
+    <div className="glass p-4 rounded-xl space-y-3 mb-4">
+      <div className="flex justify-between items-center">
+        <h4 className="text-sm font-bold">Compose Email</h4>
+        <button onClick={() => setOpen(false)} className="text-xs text-slate-500 hover:text-white">Cancel</button>
+      </div>
+      <input value={to} onChange={e => setTo(e.target.value)} placeholder="To (email)" className="w-full bg-white/5 border border-white/6 rounded-lg p-2 text-sm focus:outline-none focus:border-amber-500/50" />
+      <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject" className="w-full bg-white/5 border border-white/6 rounded-lg p-2 text-sm focus:outline-none focus:border-amber-500/50" />
+      <textarea value={body} onChange={e => setBody(e.target.value)} placeholder="Message..." rows={4} className="w-full bg-white/5 border border-white/6 rounded-lg p-2 text-sm focus:outline-none focus:border-amber-500/50 resize-y" />
+      <div className="flex justify-between items-center">
+        <span className="text-[10px] text-slate-600">Sends via Brain → Gmail</span>
+        {sent ? (
+          <span className="text-xs text-emerald-400">Queued!</span>
+        ) : (
+          <button onClick={handleSend} disabled={!to || !body || brain.isWorking} className="flex items-center gap-2 bg-amber-500 text-slate-950 px-4 py-2 rounded-lg text-xs font-bold disabled:opacity-40">
+            {brain.isWorking ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+            {brain.isWorking ? 'Sending...' : 'Send via Brain'}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ShowConversationsTab({ conversations, show }: Props) {
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
@@ -58,15 +116,19 @@ export default function ShowConversationsTab({ conversations, show }: Props) {
 
   if (conversations.length === 0) {
     return (
-      <div className="p-6 text-center py-16">
-        <Mail size={32} className="mx-auto mb-4 text-slate-600" />
-        <p className="text-sm text-slate-500">No conversations linked to this show.</p>
+      <div className="p-6">
+        <ComposeEmail show={show} />
+        <div className="text-center py-12">
+          <Mail size={32} className="mx-auto mb-4 text-slate-600" />
+          <p className="text-sm text-slate-500">No conversations linked to this show.</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="p-6 space-y-3">
+      <ComposeEmail show={show} />
       {conversations.map((conv) => {
         const isOpen = expanded.has(conv.id);
         const lastMsg = conv.messages?.[conv.messages.length - 1];
