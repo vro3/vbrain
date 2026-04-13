@@ -6,10 +6,9 @@
  */
 
 import { useState } from 'react';
-import { Users, Plus, Mail, Send, MessageSquare, Trash2, Loader2 } from 'lucide-react';
+import { Users, Plus, Mail, Send, MessageSquare, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import AddPerformerModal from './AddPerformerModal';
 import { updateShowFields } from '../lib/firestoreService';
-import { useBrainRequest } from '../hooks/useBrainRequest';
 import type { ShowIntelligence, RosterPerformer, EmailStageType } from '../types/show';
 
 interface Props {
@@ -83,117 +82,116 @@ function ActivityTimeline({ p, stage, label }: { p: RosterPerformer; stage: Emai
   );
 }
 
-// Send button — always visible, shows "Send" or "Re-send"
+// Send button — calls /api/send-email directly (no brain_requests queue)
 function SendButton({ performer, stage, show }: { performer: RosterPerformer; stage: EmailStageType; show: ShowIntelligence }) {
-  const brain = useBrainRequest();
+  const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const showName = show.eventName || show.clientName || 'Show';
-  const venue = show.venueName || '';
   const alreadySent = performer[`${stage}SentAt` as keyof RosterPerformer];
   const buttonLabel = alreadySent ? `Re-${stage}` : stage.charAt(0).toUpperCase() + stage.slice(1);
 
   const handleSend = async () => {
-    if (!performer.email) return;
-    await brain.sendRequest({
-      type: 'action',
-      prompt: `Send ${stage} email to ${performer.name} (${performer.email}) for ${showName} on ${show.showDate} at ${venue}`,
-      showId: show.id,
-      context: {
-        actionSteps: [{
-          tool: 'send_email',
-          params: {
-            showId: show.linkedShowId || show.id,
-            performerId: performer.performerId || performer.name,
-            performerName: performer.name,
-            performerEmail: performer.email,
-            emailType: stage,
-            showName,
-            showDate: show.showDate,
-            venue,
-            callTime: show.loadInTime,
-            performanceStart: show.performanceStartTime,
-            pay: performer.pay,
-            portalBaseUrl: 'https://vrbrain.vercel.app/portal',
-            trackingBaseUrl: 'https://vcommand.vercel.app/api/showsync/track',
-          },
-        }],
-      },
-    });
-    setSent(true);
-    setTimeout(() => setSent(false), 3000);
+    if (!performer.email || sending) return;
+    setSending(true);
+    setError(null);
+
+    try {
+      const res = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          showId: show.linkedShowId || show.id,
+          performerId: performer.performerId || performer.name,
+          emailType: stage,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || `Failed (${res.status})`);
+        setSending(false);
+        return;
+      }
+
+      setSent(true);
+      setSending(false);
+      setTimeout(() => setSent(false), 3000);
+    } catch (err: any) {
+      setError(err.message || 'Network error');
+      setSending(false);
+    }
   };
 
-  if (sent) return <span className="text-[10px] text-emerald-400 px-2">Queued!</span>;
+  if (sent) return <span className="text-[10px] text-emerald-400 px-2">Sent!</span>;
+  if (error) return (
+    <button onClick={handleSend} className="flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold text-red-400 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20" title={error}>
+      <AlertCircle size={10} /> Retry
+    </button>
+  );
   if (!performer.email) return <span className="text-[10px] text-slate-700 px-1">No email</span>;
 
   return (
     <button
       onClick={handleSend}
-      disabled={brain.isWorking}
+      disabled={sending}
       className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider transition-colors ${
-        brain.isWorking
+        sending
           ? 'bg-white/5 text-slate-500'
           : alreadySent
           ? 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/6'
           : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/20'
       }`}
     >
-      {brain.isWorking ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
-      {brain.isWorking ? '...' : buttonLabel}
+      {sending ? <Loader2 size={10} className="animate-spin" /> : <Send size={10} />}
+      {sending ? '...' : buttonLabel}
     </button>
   );
 }
 
 function EmailBlitzButton({ performers, show }: { performers: RosterPerformer[]; show: ShowIntelligence }) {
-  const brain = useBrainRequest();
   const [blitzType, setBlitzType] = useState<EmailStageType | null>(null);
   const [sent, setSent] = useState(0);
+  const [failed, setFailed] = useState(0);
   const [total, setTotal] = useState(0);
 
   const startBlitz = async (stage: EmailStageType) => {
     const eligible = performers.filter(p => p.email);
+    if (eligible.length === 0) return;
     setBlitzType(stage);
     setTotal(eligible.length);
     setSent(0);
+    setFailed(0);
 
     for (const p of eligible) {
-      const showName = show.eventName || show.clientName || 'Show';
-      await brain.sendRequest({
-        type: 'action',
-        prompt: `Send ${stage} email to ${p.name} (${p.email}) for ${showName}`,
-        showId: show.id,
-        context: {
-          actionSteps: [{
-            tool: 'send_email',
-            params: {
-              showId: show.linkedShowId || show.id,
-              performerId: p.performerId || p.name,
-              performerName: p.name,
-              performerEmail: p.email,
-              emailType: stage,
-              showName,
-              showDate: show.showDate,
-              venue: show.venueName || '',
-              callTime: show.loadInTime,
-              performanceStart: show.performanceStartTime,
-              pay: p.pay,
-              portalBaseUrl: 'https://vrbrain.vercel.app/portal',
-              trackingBaseUrl: 'https://vcommand.vercel.app/api/showsync/track',
-            },
-          }],
-        },
-      });
-      setSent(prev => prev + 1);
+      try {
+        const res = await fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            showId: show.linkedShowId || show.id,
+            performerId: p.performerId || p.name,
+            emailType: stage,
+          }),
+        });
+        if (res.ok) {
+          setSent(prev => prev + 1);
+        } else {
+          setFailed(prev => prev + 1);
+        }
+      } catch {
+        setFailed(prev => prev + 1);
+      }
     }
-    setTimeout(() => setBlitzType(null), 3000);
+    setTimeout(() => setBlitzType(null), 4000);
   };
 
   if (blitzType) {
+    const done = sent + failed;
     return (
       <span className="text-xs text-amber-400">
         <Loader2 size={12} className="inline animate-spin mr-1" />
-        {blitzType}: {sent}/{total} queued
+        {blitzType}: {done}/{total} {done === total ? (failed > 0 ? `(${failed} failed)` : 'done!') : 'sending...'}
       </span>
     );
   }
