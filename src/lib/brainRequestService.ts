@@ -18,6 +18,30 @@ import type {
   BrainRequestContext,
 } from '../types/brain';
 
+/**
+ * Recursively strip undefined values from an object.
+ * Firestore client SDK rejects undefined field values in setDoc().
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function stripUndefined(obj: Record<string, any>): Record<string, any> {
+  const clean = {} as Record<string, any>;
+  for (const [key, value] of Object.entries(obj)) {
+    if (value === undefined) continue;
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      clean[key] = stripUndefined(value as Record<string, unknown>);
+    } else if (Array.isArray(value)) {
+      clean[key] = value.map((item: any) =>
+        item !== null && typeof item === 'object' && !Array.isArray(item)
+          ? stripUndefined(item as Record<string, any>)
+          : item
+      );
+    } else {
+      clean[key] = value;
+    }
+  }
+  return clean;
+}
+
 export async function createBrainRequest(params: {
   type: BrainRequestType;
   prompt: string;
@@ -40,7 +64,7 @@ export async function createBrainRequest(params: {
     ...(params.context && { context: params.context }),
   };
 
-  await setDoc(docRef, request);
+  await setDoc(docRef, stripUndefined(request as unknown as Record<string, any>));
   return docRef.id;
 }
 
