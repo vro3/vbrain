@@ -6,12 +6,12 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Send, Plus, Loader2, AlertTriangle, Paperclip, X, FileText, Image, File as FileIcon, Upload } from 'lucide-react';
+import { Send, Plus, Loader2, AlertTriangle, Paperclip, X, FileText, Image, File as FileIcon, Upload, Pencil, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import SmartCreateModal from './SmartCreateModal';
 import { useBrainRequest } from '../hooks/useBrainRequest';
 import { db } from '../lib/firebase-client';
-import { collection, query, where, orderBy, limit, onSnapshot } from 'firebase/firestore';
+import { collection, query, where, orderBy, limit, onSnapshot, doc, deleteDoc } from 'firebase/firestore';
 import { uploadFiles, type UploadedFile } from '../lib/fileUploadService';
 
 interface ChatMessage {
@@ -58,6 +58,10 @@ export default function Home() {
   const [stagedFiles, setStagedFiles] = useState<StagedFile[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
@@ -255,6 +259,37 @@ export default function Home() {
     return 'bg-amber-500/10 text-amber-500';
   };
 
+  const toggleSelect = useCallback((id: string) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const exitEditMode = useCallback(() => {
+    setEditMode(false);
+    setSelected(new Set());
+    setConfirmDelete(false);
+  }, []);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (!confirmDelete) {
+      setConfirmDelete(true);
+      return;
+    }
+    setDeleting(true);
+    try {
+      const ids = Array.from(selected);
+      await Promise.all(ids.map((id: string) => deleteDoc(doc(db, 'show_intelligence', id))));
+      exitEditMode();
+    } catch (err: any) {
+      console.error('[Home] Bulk delete failed:', err);
+    } finally {
+      setDeleting(false);
+    }
+  }, [selected, confirmDelete, exitEditMode]);
+
   const isBusy = brain.isWorking || isUploading;
 
   return (
@@ -385,12 +420,32 @@ export default function Home() {
       <div className="col-span-12 lg:col-span-5 flex flex-col glass rounded-2xl p-6 h-[calc(100vh-120px)] overflow-hidden">
         <div className="flex justify-between items-center mb-4 shrink-0">
           <h2 className="col-header">Upcoming Shows</h2>
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="bg-amber-500 text-slate-950 px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
-          >
-            <Plus size={14} /> New Show
-          </button>
+          <div className="flex items-center gap-2">
+            {editMode ? (
+              <button
+                onClick={exitEditMode}
+                className="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider border border-white/10 text-slate-300 hover:text-white hover:border-white/20 transition-colors"
+              >
+                Done
+              </button>
+            ) : (
+              <button
+                onClick={() => setEditMode(true)}
+                className="px-3 py-2 rounded-lg text-xs text-slate-400 hover:text-white transition-colors"
+                title="Select shows to delete"
+              >
+                <Pencil size={14} />
+              </button>
+            )}
+            {!editMode && (
+              <button
+                onClick={() => setIsModalOpen(true)}
+                className="bg-amber-500 text-slate-950 px-4 py-2 rounded-lg flex items-center gap-2 text-xs font-bold uppercase tracking-wider"
+              >
+                <Plus size={14} /> New Show
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex gap-1 mb-4 shrink-0">
           {(['all', 'confirmed', 'inquiry'] as const).map(f => (
@@ -412,10 +467,25 @@ export default function Home() {
             return filtered.map(show => (
             <div
               key={show.id}
-              onClick={() => navigate(`/show/${show.id}`)}
-              className="flex justify-between items-center bg-white/5 p-4 rounded-xl border border-white/6 hover:border-amber-500/50 cursor-pointer transition-all"
+              onClick={() => editMode ? toggleSelect(show.id) : navigate(`/show/${show.id}`)}
+              className={`flex justify-between items-center bg-white/5 p-4 rounded-xl border cursor-pointer transition-all ${
+                editMode && selected.has(show.id)
+                  ? 'border-red-500/50 bg-red-500/5'
+                  : 'border-white/6 hover:border-amber-500/50'
+              }`}
             >
               <div className="flex items-center gap-4">
+                {editMode && (
+                  <div className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                    selected.has(show.id)
+                      ? 'bg-red-500 border-red-500'
+                      : 'border-slate-600'
+                  }`}>
+                    {selected.has(show.id) && (
+                      <svg width="10" height="8" viewBox="0 0 10 8" fill="none"><path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                    )}
+                  </div>
+                )}
                 <div className="font-mono text-xl text-cyan-400">{show.date}</div>
                 <div>
                   <div className="font-bold tracking-tight">{show.showType || show.client || 'Untitled'}</div>
@@ -423,13 +493,73 @@ export default function Home() {
                   {show.client && show.showType && <div className="text-xs text-slate-500">{show.client}</div>}
                 </div>
               </div>
-              <span className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold ${statusColor(show.status)}`}>
-                {show.status}
-              </span>
+              {!editMode && (
+                <span className={`px-3 py-1 rounded-full text-[10px] uppercase tracking-widest font-bold ${statusColor(show.status)}`}>
+                  {show.status}
+                </span>
+              )}
             </div>
           ));
           })()}
         </div>
+
+        {/* Bulk delete bar */}
+        {editMode && selected.size > 0 && (
+          <div className="shrink-0 mt-3 flex items-center justify-between bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+            <span className="text-sm text-red-300">
+              {selected.size} show{selected.size > 1 ? 's' : ''} selected
+            </span>
+            <div className="flex items-center gap-2">
+              {confirmDelete ? (
+                <>
+                  <span className="text-xs text-red-400 mr-2">Are you sure?</span>
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="px-3 py-1.5 text-xs text-slate-400 hover:text-white rounded-lg bg-white/5 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleBulkDelete}
+                    disabled={deleting}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold bg-red-500 text-white rounded-lg hover:bg-red-400 transition-colors disabled:opacity-50"
+                  >
+                    {deleting ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                    {deleting ? 'Deleting...' : 'Delete Permanently'}
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleBulkDelete}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-red-400 border border-red-500/30 rounded-lg hover:bg-red-500/10 transition-colors"
+                >
+                  <Trash2 size={12} /> Delete ({selected.size})
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Select all / none helper in edit mode */}
+        {editMode && (
+          <div className="shrink-0 mt-2 flex items-center gap-3 text-xs text-slate-500">
+            <button
+              onClick={() => {
+                const filtered = statusFilter === 'all' ? shows : shows.filter(s => s.status === statusFilter);
+                setSelected(new Set(filtered.map(s => s.id)));
+              }}
+              className="hover:text-white transition-colors"
+            >
+              Select all
+            </button>
+            <button
+              onClick={() => setSelected(new Set())}
+              className="hover:text-white transition-colors"
+            >
+              Select none
+            </button>
+          </div>
+        )}
       </div>
 
       <SmartCreateModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} />
