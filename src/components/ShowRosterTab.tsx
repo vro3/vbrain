@@ -9,6 +9,7 @@ import { useState } from 'react';
 import { Users, Plus, Mail, Send, MessageSquare, Trash2, Loader2, AlertCircle } from 'lucide-react';
 import AddPerformerModal from './AddPerformerModal';
 import { updateShowFields } from '../lib/firestoreService';
+import { auth } from '../lib/firebase-client';
 import type { ShowIntelligence, RosterPerformer, EmailStageType } from '../types/show';
 
 interface Props {
@@ -97,9 +98,13 @@ function SendButton({ performer, stage, show }: { performer: RosterPerformer; st
     setError(null);
 
     try {
+      const idToken = await auth.currentUser?.getIdToken();
       const res = await fetch('/api/send-email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {}),
+        },
         body: JSON.stringify({
           showId: show.linkedShowId || show.id,
           performerId: performer.performerId || performer.name,
@@ -163,11 +168,16 @@ function EmailBlitzButton({ performers, show }: { performers: RosterPerformer[];
     setSent(0);
     setFailed(0);
 
+    const idToken = await auth.currentUser?.getIdToken();
+
     for (const p of eligible) {
       try {
         const res = await fetch('/api/send-email', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {}),
+          },
           body: JSON.stringify({
             showId: show.linkedShowId || show.id,
             performerId: p.performerId || p.name,

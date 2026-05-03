@@ -8,8 +8,6 @@
 import { useState, useEffect } from 'react';
 import { MapPin, Clock, DollarSign, Check, Loader2, AlertTriangle } from 'lucide-react';
 import { useSearchParams } from 'react-router-dom';
-import { db } from '../lib/firebase-client';
-import { collection, query, getDocs, doc, setDoc } from 'firebase/firestore';
 
 interface PortalShow {
   id: string;
@@ -42,80 +40,58 @@ export default function PerformerPortal() {
   const [responseBanner, setResponseBanner] = useState<string | null>(null);
   const [responding, setResponding] = useState(false);
 
-  // Load shows for this performer
+  // Load shows for this performer via server-side API (scoped, no sensitive data)
   useEffect(() => {
     if (!performerId) { setLoading(false); return; }
 
     const loadShows = async () => {
-      const snap = await getDocs(query(collection(db, 'show_intelligence')));
-      const results: PortalShow[] = [];
-
-      snap.docs.forEach(d => {
-        const s = d.data();
-        const roster = s.roster?.performers || [];
-        const me = roster.find((p: any) =>
-          p.performerId === performerId || p.name?.toLowerCase().includes(performerId.toLowerCase())
-        );
-        if (!me) return;
-        if (!performerName && me.name) setPerformerName(me.name);
-
-        results.push({
-          id: d.id,
-          eventName: s.eventName || s.clientName || 'Show',
-          showDate: s.showDate || '',
-          venueName: s.venueName || '',
-          venueAddress: s.venueAddress || '',
-          city: s.venueCity || '',
-          state: s.venueState || '',
-          loadInTime: s.loadInTime || '',
-          performanceStartTime: s.performanceStartTime || '',
-          performanceEndTime: s.performanceEndTime || '',
-          notesToTalent: s.notesToTalent || '',
-          pay: me.pay || '',
-          status: s.status || 'inquiry',
-          performerStatus: me.status || 'inquired',
-        });
-      });
-
-      results.sort((a, b) => (a.showDate || '').localeCompare(b.showDate || ''));
-      setShows(results);
+      try {
+        const res = await fetch(`/api/portal-shows?performerId=${encodeURIComponent(performerId)}`);
+        if (!res.ok) { setLoading(false); return; }
+        const data = await res.json();
+        if (data.performerName) setPerformerName(data.performerName);
+        setShows(data.shows || []);
+      } catch {
+        // Silently fail — portal shows empty state
+      }
       setLoading(false);
     };
 
     loadShows();
   }, [performerId]);
 
-  // Handle auto-response from email YES/NO click
+  // Handle auto-response from email YES/NO click via server-side API
   useEffect(() => {
     if (action !== 'respond' || !responseShowId || !responseType || !responseValue || responding) return;
     setResponding(true);
 
+    const token = searchParams.get('token') || '';
+
     const submitResponse = async () => {
       try {
-        const brainRef = doc(collection(db, 'brain_requests'));
-        await setDoc(brainRef, {
-          id: brainRef.id,
-          type: 'action',
-          source: 'portal',
-          prompt: `Record performer response: ${performerId} responded ${responseValue} to ${responseType} for show ${responseShowId}`,
-          showId: responseShowId,
-          context: {
-            actionSteps: [{
-              tool: 'update_roster',
-              params: { showId: responseShowId, performerId, response: responseValue, emailType: responseType },
-            }],
-          },
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-          ttl: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        const res = await fetch('/api/portal-respond', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            performerId,
+            showId: responseShowId,
+            type: responseType,
+            response: responseValue,
+            token,
+          }),
         });
 
-        const responseText = responseValue === 'yes' ? 'accepted' : 'declined';
-        setResponseBanner(`Your response has been recorded. You ${responseText} the ${responseType}.`);
+        const data = await res.json();
+        if (!res.ok) {
+          setResponseBanner(`Error: ${data.error || 'Failed to record response'}`);
+        } else {
+          const responseText = responseValue === 'yes' ? 'accepted' : 'declined';
+          setResponseBanner(`Your response has been recorded. You ${responseText} the ${responseType}.`);
+        }
         // Strip action params from URL
         setSearchParams({ performerId });
       } catch (err: any) {
-        setResponseBanner(`Error: ${err.message}`);
+        setResponseBanner(`Error: ${err.message || 'Network error'}`);
       }
     };
 
