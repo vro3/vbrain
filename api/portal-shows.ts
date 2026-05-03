@@ -10,7 +10,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { adminDb } from './lib/firebase-admin';
+import { adminDb } from './_lib/firebase-admin';
 
 interface PortalShow {
   id: string;

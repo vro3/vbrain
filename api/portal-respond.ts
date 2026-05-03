@@ -13,7 +13,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createHmac } from 'crypto';
-import { adminDb } from './lib/firebase-admin';
+import { adminDb } from './_lib/firebase-admin';
 
 function verifyToken(performerId: string, showId: string, type: string, token: string): boolean {
   const secret = process.env.PORTAL_SECRET;

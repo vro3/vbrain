@@ -10,7 +10,7 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { adminAuth } from './lib/firebase-admin';
+import { adminAuth } from './_lib/firebase-admin';
 
 const ALLOWED_ORIGINS = [
   'https://vrbrain.vercel.app',
