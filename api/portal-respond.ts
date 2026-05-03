@@ -43,18 +43,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(400).json({ error: 'Response must be yes or no' });
   }
 
-  // Token verification
-  const portalSecret = process.env.PORTAL_SECRET;
-  if (portalSecret) {
-    // If PORTAL_SECRET is configured, require valid token
-    if (!token || !verifyToken(performerId, showId, type, token)) {
+  // Token verification — if token is present, validate it.
+  // If no token, allow through for backward compat with existing email links.
+  // TODO: Once vcommand generates tokens in performer emails, flip this to REQUIRE tokens.
+  if (token) {
+    if (!verifyToken(performerId, showId, type, token)) {
       return res.status(403).json({
         error: 'Invalid or expired link. Please contact VR Creative Group for a new link.',
       });
     }
   }
-  // If PORTAL_SECRET not yet configured, allow through (backward compat)
-  // Remove this fallback once PORTAL_SECRET is set on both vrbrain and vcommand
 
   // Verify this performer actually exists on this show
   try {
