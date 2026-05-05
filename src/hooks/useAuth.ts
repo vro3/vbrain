@@ -5,7 +5,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { onAuthStateChanged, signInWithPopup, signOut, type User } from 'firebase/auth';
+import { onAuthStateChanged, signInWithRedirect, getRedirectResult, signOut, type User } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase-client';
 
 const ALLOWED_EMAILS = [
@@ -19,6 +19,16 @@ export function useAuth() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Handle redirect result when returning from Google sign-in
+    getRedirectResult(auth).then((result) => {
+      if (result?.user && !ALLOWED_EMAILS.includes(result.user.email || '')) {
+        signOut(auth);
+        setError('Access denied. Not an authorized account.');
+      }
+    }).catch((err) => {
+      setError(err.message);
+    });
+
     const unsub = onAuthStateChanged(auth, (u) => {
       if (u && !ALLOWED_EMAILS.includes(u.email || '')) {
         signOut(auth);
@@ -33,17 +43,9 @@ export function useAuth() {
     return () => unsub();
   }, []);
 
-  const login = async () => {
+  const login = () => {
     setError(null);
-    try {
-      const result = await signInWithPopup(auth, googleProvider);
-      if (!ALLOWED_EMAILS.includes(result.user.email || '')) {
-        await signOut(auth);
-        setError('Access denied. Not an authorized account.');
-      }
-    } catch (err: any) {
-      setError(err.message);
-    }
+    signInWithRedirect(auth, googleProvider);
   };
 
   const logout = () => signOut(auth);
